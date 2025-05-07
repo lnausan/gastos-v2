@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import { format, parse } from "date-fns"
 import { es } from "date-fns/locale"
 import { Edit, Trash2 } from "lucide-react"
@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge"
 import { useTransactions } from "@/context/transaction-context"
 import type { Transaction } from "@/types/transaction"
 import TransactionForm from "@/components/transaction-form"
+import { toast } from 'sonner'
 
 interface TransactionListProps {
   month: string
@@ -44,7 +45,8 @@ const categoryLabels: Record<string, string> = {
 export default function TransactionList({ month, simplified = false }: TransactionListProps) {
   const { getMonthTransactions, deleteTransaction } = useTransactions()
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
-  const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null)
+  const [isPending, startTransition] = useTransition()
+  const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
 
   const transactions = getMonthTransactions(month)
 
@@ -54,6 +56,25 @@ export default function TransactionList({ month, simplified = false }: Transacti
   const formatDate = (dateString: string) => {
     const date = parse(dateString, "yyyy-MM", new Date())
     return format(date, "MMMM yyyy", { locale: es })
+  }
+
+  const handleDelete = (id: string) => {
+    setTransactionToDelete(id)
+  }
+
+  const confirmDelete = () => {
+    if (!transactionToDelete) return
+
+    startTransition(() => {
+      try {
+        deleteTransaction(transactionToDelete)
+        toast.success('Transacción eliminada correctamente')
+      } catch (error) {
+        toast.error('Error al eliminar la transacción')
+      } finally {
+        setTransactionToDelete(null)
+      }
+    })
   }
 
   return (
@@ -103,7 +124,12 @@ export default function TransactionList({ month, simplified = false }: Transacti
                         <Edit className="h-4 w-4" />
                         <span className="sr-only">Editar</span>
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeletingTransaction(transaction)}>
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        onClick={() => handleDelete(transaction.id)}
+                        disabled={isPending}
+                      >
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Eliminar</span>
                       </Button>
@@ -129,26 +155,18 @@ export default function TransactionList({ month, simplified = false }: Transacti
       </Dialog>
 
       {/* Diálogo de confirmación para eliminar */}
-      <AlertDialog open={!!deletingTransaction} onOpenChange={(open) => !open && setDeletingTransaction(null)}>
+      <AlertDialog open={!!transactionToDelete} onOpenChange={() => setTransactionToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta acción no se puede deshacer. Esto eliminará permanentemente la transacción de tu cuenta.
+              Esta acción no se puede deshacer. Se eliminará permanentemente esta transacción.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (deletingTransaction) {
-                  deleteTransaction(deletingTransaction.id)
-                  setDeletingTransaction(null)
-                }
-              }}
-              className="bg-red-500 hover:bg-red-600"
-            >
-              Eliminar
+            <AlertDialogAction onClick={confirmDelete} disabled={isPending}>
+              {isPending ? 'Eliminando...' : 'Eliminar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

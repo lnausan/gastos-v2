@@ -17,15 +17,15 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { cn } from "@/lib/utils"
 import { useTransactions } from "@/context/transaction-context"
-import type { Transaction } from "@/types/transaction"
+import type { Transaction, TransactionCategory } from "@/types/transaction"
 
 const formSchema = z.object({
   amount: z.coerce.number().positive("El monto debe ser un número positivo"),
   type: z.enum(["ingreso", "gasto"], {
     required_error: "Debes seleccionar un tipo de transacción",
   }),
-  category: z.string({
-    required_error: "Debes seleccionar una categoría",
+  category: z.custom<TransactionCategory>((val) => typeof val === "string", {
+    message: "Debes seleccionar una categoría válida",
   }),
   date: z.date({
     required_error: "Debes seleccionar una fecha",
@@ -84,7 +84,7 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
         addTransaction({
           amount: values.amount,
           type: values.type,
-          category: values.category as any,
+          category: values.category as Transaction["category"],
           date: formattedDate,
           notes: values.notes,
         })
@@ -216,7 +216,7 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
                     <Calendar
-                      mode="month"
+                      mode="single"
                       selected={field.value}
                       onSelect={field.onChange}
                       disabled={(date) => date > new Date() || date < new Date("1900-01-01")}

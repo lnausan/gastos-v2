@@ -5,9 +5,18 @@ import { Wallet } from "lucide-react"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { Button } from "@/components/ui/button"
 import { usePathname } from "next/navigation"
+import { useSupabase } from '@/components/providers/supabase-provider'
+import { useRouter } from 'next/navigation'
 
 export default function Header() {
   const pathname = usePathname()
+  const { supabase } = useSupabase()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/auth')
+  }
 
   return (
     <header className="border-b">
@@ -50,6 +59,10 @@ export default function Header() {
               </svg>
             </Button>
           </div>
+
+          <Button variant="outline" onClick={handleLogout}>
+            Cerrar sesión
+          </Button>
         </div>
       </div>
     </header>
