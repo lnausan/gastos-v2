@@ -334,17 +334,23 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     if (!supabase) return
 
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        console.error('No se pudo obtener el usuario autenticado')
+        return
+      }
       const existingDollar = dollarValues.find((d) => d.month === month)
       const dollarValue = {
         id: existingDollar?.id,
         month,
         value,
+        user_id: user.id,
         updated_at: new Date().toISOString(),
       }
 
       const { data, error } = await supabase
         .from('dollar_values')
-        .upsert(dollarValue)
+        .upsert(dollarValue, { onConflict: 'month' })
         .select()
         .single()
 
