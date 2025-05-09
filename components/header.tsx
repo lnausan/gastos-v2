@@ -1,17 +1,32 @@
 "use client"
 
 import Link from "next/link"
-import { Wallet } from "lucide-react"
+import { Wallet, User2 } from "lucide-react"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { Button } from "@/components/ui/button"
 import { usePathname } from "next/navigation"
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { useRouter } from 'next/navigation'
+import { useEffect, useState } from "react"
 
 export default function Header() {
   const pathname = usePathname()
   const { supabase } = useSupabase()
   const router = useRouter()
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!supabase) return;
+    const getUser = async () => {
+      try {
+        const { data } = await supabase.auth.getUser();
+        setUserEmail(data?.user?.email || null);
+      } catch (e) {
+        setUserEmail(null);
+      }
+    }
+    getUser()
+  }, [supabase])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -59,6 +74,13 @@ export default function Header() {
               </svg>
             </Button>
           </div>
+
+          {userEmail && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <User2 className="h-5 w-5" />
+              <span>{userEmail}</span>
+            </div>
+          )}
 
           <Button variant="outline" onClick={handleLogout}>
             Cerrar sesión
