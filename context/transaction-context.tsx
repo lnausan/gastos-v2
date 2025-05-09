@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 interface TransactionContextType {
   transactions: Transaction[]
   dollarValues: DollarValue[]
-  addTransaction: (transaction: Omit<Transaction, "id" | "createdAt" | "user_id">) => Promise<void>
+  addTransaction: (transaction: Omit<Transaction, "id" | "created_at" | "updated_at" | "user_id">) => Promise<void>
   updateTransaction: (id: string, transaction: Partial<Transaction>) => Promise<void>
   deleteTransaction: (id: string) => Promise<void>
   getMonthTransactions: (month: string) => Transaction[]
@@ -68,12 +68,32 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
     const loadData = async () => {
       try {
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        
+        if (userError) {
+          console.error('Error al obtener usuario:', userError)
+          throw userError
+        }
+        
+        if (!user) {
+          console.log('No hay usuario autenticado')
+          return
+        }
+
+        console.log('Usuario autenticado:', user.id)
+
         const { data: transactionsData, error: transactionsError } = await supabase
-          .from('transactions')
+          .from('expenses')
           .select('*')
+          .eq('user_id', user.id)
           .order('created_at', { ascending: false })
 
-        if (transactionsError) throw transactionsError
+        if (transactionsError) {
+          console.error('Error al cargar transacciones:', transactionsError)
+          throw transactionsError
+        }
+
+        console.log('Transacciones cargadas:', transactionsData)
         setTransactions(transactionsData || [])
 
         const { data: dollarValuesData, error: dollarValuesError } = await supabase
@@ -81,11 +101,20 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           .select('*')
           .order('month', { ascending: false })
 
-        if (dollarValuesError) throw dollarValuesError
+        if (dollarValuesError) {
+          console.error('Error al cargar valores del dólar:', dollarValuesError)
+          throw dollarValuesError
+        }
+
+        console.log('Valores del dólar cargados:', dollarValuesData)
         setDollarValues(dollarValuesData || [])
       } catch (error) {
         console.error('Error al cargar datos:', error)
-        toast.error('Error al cargar los datos')
+        toast({
+          title: 'Error al cargar los datos',
+          description: error instanceof Error ? error.message : 'Error desconocido',
+          variant: 'destructive'
+        })
       }
     }
 
@@ -102,23 +131,52 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   }, [dollarValues, storageId])
 
   // Agregar una nueva transacción
-  const addTransaction = async (transaction: Omit<Transaction, "id" | "createdAt" | "user_id">) => {
+  const addTransaction = async (transaction: Omit<Transaction, "id" | "created_at" | "updated_at" | "user_id">) => {
     if (!supabase) return
 
     try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        console.error('No se pudo obtener el usuario autenticado')
+        return
+      }
+
+      const expenseToInsert = {
+        amount: transaction.amount,
+        description: transaction.description,
+        date: transaction.date,
+        category_id: transaction.category_id,
+        user_id: user.id,
+        type: transaction.type,
+      }
+
+      console.log('Insertando en Supabase:', expenseToInsert)
+
       const { data, error } = await supabase
-        .from('transactions')
-        .insert([transaction])
+        .from('expenses')
+        .insert([expenseToInsert])
         .select()
         .single()
 
+      console.log('Respuesta de Supabase:', { data, error })
+
       if (error) throw error
 
-      setTransactions((prev) => [data, ...prev])
-      toast.success('Transacción agregada correctamente')
+      // Recargar todas las transacciones para asegurar consistencia
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('expenses')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (transactionsError) throw transactionsError
+
+      console.log('Transacciones actualizadas:', transactionsData)
+      setTransactions(transactionsData || [])
+      toast({ title: 'Transacción agregada correctamente' })
     } catch (error) {
       console.error('Error al agregar transacción:', error)
-      toast.error('Error al agregar la transacción')
+      toast({ title: 'Error al agregar la transacción' })
       throw error
     }
   }
@@ -128,22 +186,41 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     if (!supabase) return
 
     try {
+      // Adaptar los campos al esquema de expenses
+      const expenseToUpdate: any = {}
+      if (transaction.amount !== undefined) expenseToUpdate.amount = transaction.amount
+      if (transaction.description !== undefined) expenseToUpdate.description = transaction.description
+      if (transaction.date !== undefined) expenseToUpdate.date = transaction.date
+      if (transaction.category_id !== undefined) expenseToUpdate.category_id = transaction.category_id
+      if (transaction.type !== undefined) expenseToUpdate.type = transaction.type
+
+      console.log('Actualizando transacción:', { id, ...expenseToUpdate })
+
       const { data, error } = await supabase
-        .from('transactions')
-        .update(transaction)
+        .from('expenses')
+        .update(expenseToUpdate)
         .eq('id', id)
         .select()
         .single()
 
       if (error) throw error
 
-      setTransactions((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...data } : t))
-      )
-      toast.success('Transacción actualizada correctamente')
+      console.log('Transacción actualizada:', data)
+
+      // Recargar todas las transacciones para asegurar consistencia
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('expenses')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (transactionsError) throw transactionsError
+
+      console.log('Transacciones actualizadas:', transactionsData)
+      setTransactions(transactionsData || [])
+      toast({ title: 'Transacción actualizada correctamente' })
     } catch (error) {
       console.error('Error al actualizar transacción:', error)
-      toast.error('Error al actualizar la transacción')
+      toast({ title: 'Error al actualizar la transacción' })
       throw error
     }
   }
@@ -153,22 +230,33 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     if (!supabase) return
 
     try {
-      const { error } = await supabase.from('transactions').delete().eq('id', id)
+      console.log('Eliminando transacción:', id)
+
+      const { error } = await supabase.from('expenses').delete().eq('id', id)
 
       if (error) throw error
 
-      setTransactions((prev) => prev.filter((t) => t.id !== id))
-      toast.success('Transacción eliminada correctamente')
+      // Recargar todas las transacciones para asegurar consistencia
+      const { data: transactionsData, error: transactionsError } = await supabase
+        .from('expenses')
+        .select('*')
+        .order('created_at', { ascending: false })
+
+      if (transactionsError) throw transactionsError
+
+      console.log('Transacciones actualizadas:', transactionsData)
+      setTransactions(transactionsData || [])
+      toast({ title: 'Transacción eliminada correctamente' })
     } catch (error) {
       console.error('Error al eliminar transacción:', error)
-      toast.error('Error al eliminar la transacción')
+      toast({ title: 'Error al eliminar la transacción' })
       throw error
     }
   }
 
   // Obtener transacciones de un mes específico
   const getMonthTransactions = (month: string) => {
-    return transactions.filter((t) => t.date === month)
+    return transactions.filter((t) => t.date.startsWith(month))
   }
 
   // Obtener resumen de un mes específico
@@ -195,10 +283,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     const categorySummary: Record<string, number> = {}
 
     monthTransactions.forEach((transaction) => {
-      if (!categorySummary[transaction.category]) {
-        categorySummary[transaction.category] = 0
+      if (!categorySummary[transaction.category_id]) {
+        categorySummary[transaction.category_id] = 0
       }
-      categorySummary[transaction.category] += transaction.amount
+      categorySummary[transaction.category_id] += transaction.amount
     })
 
     return Object.entries(categorySummary)
@@ -271,10 +359,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         }
       })
 
-      toast.success('Valor del dólar actualizado correctamente')
+      toast({ title: 'Valor del dólar actualizado correctamente' })
     } catch (error) {
       console.error('Error al actualizar valor del dólar:', error)
-      toast.error('Error al actualizar el valor del dólar')
+      toast({ title: 'Error al actualizar el valor del dólar' })
       throw error
     }
   }

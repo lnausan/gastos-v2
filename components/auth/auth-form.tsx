@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { useRouter } from 'next/navigation'
 
 export default function AuthForm() {
   const { supabase } = useSupabase()
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
@@ -40,6 +42,7 @@ export default function AuthForm() {
         })
         if (error) throw error
         toast.success('¡Inicio de sesión exitoso!')
+        router.push('/')
       }
     } catch (error) {
       console.error('Error de autenticación:', error)

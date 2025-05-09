@@ -10,6 +10,8 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession()
 
+  console.log("SESSION:", session)
+
   // Si el usuario no está autenticado y no está en la página de auth, redirigir a auth
   if (!session && !req.nextUrl.pathname.startsWith('/auth')) {
     return NextResponse.redirect(new URL('/auth', req.url))

@@ -1,5 +1,3 @@
-export type TransactionType = "ingreso" | "gasto"
-
 export type TransactionCategory =
   | "salario"
   | "inversiones"
@@ -12,14 +10,18 @@ export type TransactionCategory =
   | "educacion"
   | "otros_gastos"
 
+export type TransactionType = "ingreso" | "gasto"
+
 export interface Transaction {
   id: string
   amount: number
   type: TransactionType
-  category: TransactionCategory
-  date: string // formato: YYYY-MM
-  notes?: string
-  createdAt: number
+  category_id: string
+  date: string
+  description: string | null
+  created_at: string
+  updated_at: string
+  user_id: string
 }
 
 export interface MonthSummary {
@@ -33,5 +35,6 @@ export interface DollarValue {
   id: string
   month: string // formato: YYYY-MM
   value: number
-  updatedAt: number
+  created_at: string
+  updated_at: string
 }

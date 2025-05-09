@@ -34,6 +34,7 @@ export default function DollarValue({ month }: DollarValueProps) {
     defaultValues: {
       value: dollarValue?.value || undefined,
     },
+    values: dollarValue ? { value: dollarValue.value } : undefined,
   })
 
   const formatDate = (dateString: string) => {
@@ -64,7 +65,7 @@ export default function DollarValue({ month }: DollarValueProps) {
         </div>
         {dollarValue && (
           <p className="text-xs text-muted-foreground mt-1">
-            Última actualización: {format(new Date(dollarValue.updatedAt), "dd/MM/yyyy HH:mm")}
+            Última actualización: {format(new Date(dollarValue.updated_at), "dd/MM/yyyy HH:mm")}
           </p>
         )}
       </CardContent>
@@ -76,10 +77,13 @@ export default function DollarValue({ month }: DollarValueProps) {
               {dollarValue ? "Actualizar valor" : "Establecer valor"}
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent aria-describedby="dollar-value-desc">
             <DialogHeader>
-              <DialogTitle>Valor del Dólar</DialogTitle>
+              <DialogTitle>Establecer valor del dólar</DialogTitle>
             </DialogHeader>
+            <p id="dollar-value-desc" className="sr-only">
+              Ingresa el valor del dólar para el mes seleccionado.
+            </p>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField

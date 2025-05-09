@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
 import { format, parse } from "date-fns"
 import { es } from "date-fns/locale"
 import { Edit, Trash2 } from "lucide-react"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -47,15 +48,27 @@ export default function TransactionList({ month, simplified = false }: Transacti
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [isPending, startTransition] = useTransition()
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
+  const [categories, setCategories] = useState<{ id: string, name: string }[]>([])
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const supabase = createClientComponentClient()
+      const { data, error } = await supabase.from('categories').select('id, name')
+      if (!error && data) setCategories(data)
+    }
+    fetchCategories()
+  }, [])
 
   const transactions = getMonthTransactions(month)
 
   // Ordenar transacciones por fecha (más recientes primero)
-  const sortedTransactions = [...transactions].sort((a, b) => b.createdAt - a.createdAt)
+  const sortedTransactions = [...transactions].sort((a, b) => 
+    new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+  )
 
   const formatDate = (dateString: string) => {
-    const date = parse(dateString, "yyyy-MM", new Date())
-    return format(date, "MMMM yyyy", { locale: es })
+    const date = new Date(dateString)
+    return format(date, "dd/MM/yyyy", { locale: es })
   }
 
   const handleDelete = (id: string) => {
@@ -89,7 +102,7 @@ export default function TransactionList({ month, simplified = false }: Transacti
               {!simplified && <TableHead>Tipo</TableHead>}
               <TableHead>Categoría</TableHead>
               {!simplified && <TableHead>Fecha</TableHead>}
-              {!simplified && <TableHead>Notas</TableHead>}
+              {!simplified && <TableHead>Descripción</TableHead>}
               {!simplified && <TableHead className="text-right">Acciones</TableHead>}
             </TableRow>
           </TableHeader>
@@ -114,26 +127,25 @@ export default function TransactionList({ month, simplified = false }: Transacti
                     </Badge>
                   </TableCell>
                 )}
-                <TableCell>{categoryLabels[transaction.category] || transaction.category}</TableCell>
+                <TableCell>{categories.find(cat => cat.id === transaction.category_id)?.name || "Sin categoría"}</TableCell>
                 {!simplified && <TableCell>{formatDate(transaction.date)}</TableCell>}
-                {!simplified && <TableCell className="max-w-[200px] truncate">{transaction.notes || "-"}</TableCell>}
+                {!simplified && <TableCell>{transaction.description}</TableCell>}
                 {!simplified && (
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => setEditingTransaction(transaction)}>
-                        <Edit className="h-4 w-4" />
-                        <span className="sr-only">Editar</span>
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        onClick={() => handleDelete(transaction.id)}
-                        disabled={isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        <span className="sr-only">Eliminar</span>
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditingTransaction(transaction)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDelete(transaction.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 )}
               </TableRow>
@@ -144,10 +156,13 @@ export default function TransactionList({ month, simplified = false }: Transacti
 
       {/* Diálogo para editar transacción */}
       <Dialog open={!!editingTransaction} onOpenChange={(open) => !open && setEditingTransaction(null)}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[425px]" aria-describedby="edit-transaction-desc">
           <DialogHeader>
             <DialogTitle>Editar transacción</DialogTitle>
           </DialogHeader>
+          <p id="edit-transaction-desc" className="sr-only">
+            Completa los campos para editar la transacción seleccionada.
+          </p>
           {editingTransaction && (
             <TransactionForm transaction={editingTransaction} onSuccess={() => setEditingTransaction(null)} />
           )}

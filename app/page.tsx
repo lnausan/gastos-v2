@@ -54,10 +54,13 @@ export default function DashboardPage() {
                 <Plus className="mr-2 h-4 w-4" /> Nueva transacción
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[425px]" aria-describedby="new-transaction-desc">
               <DialogHeader>
                 <DialogTitle>Nueva transacción</DialogTitle>
               </DialogHeader>
+              <p id="new-transaction-desc" className="sr-only">
+                Completa los campos para agregar una nueva transacción.
+              </p>
               <TransactionForm onSuccess={() => setIsFormOpen(false)} />
             </DialogContent>
           </Dialog>

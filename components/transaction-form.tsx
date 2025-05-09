@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useId } from "react"
+import { useState, useId, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { CalendarIcon } from "lucide-react"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { toast } from "@/components/ui/use-toast"
 
 import { Button } from "@/components/ui/button"
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -24,13 +26,13 @@ const formSchema = z.object({
   type: z.enum(["ingreso", "gasto"], {
     required_error: "Debes seleccionar un tipo de transacción",
   }),
-  category: z.custom<TransactionCategory>((val) => typeof val === "string", {
-    message: "Debes seleccionar una categoría válida",
+  category_id: z.string({
+    required_error: "Debes seleccionar una categoría",
   }),
   date: z.date({
     required_error: "Debes seleccionar una fecha",
   }),
-  notes: z.string().optional(),
+  description: z.string().optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -43,19 +45,32 @@ interface TransactionFormProps {
 export default function TransactionForm({ transaction, onSuccess }: TransactionFormProps) {
   const { addTransaction, updateTransaction } = useTransactions()
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [categories, setCategories] = useState<{ id: string, name: string }[]>([])
   const formId = useId()
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const supabase = createClientComponentClient()
+      const { data, error } = await supabase.from('categories').select('id, name')
+      if (!error && data) setCategories(data)
+    }
+    fetchCategories()
+  }, [])
 
   const defaultValues: Partial<FormValues> = transaction
     ? {
-        amount: transaction.amount,
-        type: transaction.type,
-        category: transaction.category,
-        date: new Date(transaction.date + "-01"), // Convertir YYYY-MM a Date
-        notes: transaction.notes,
+        amount: transaction.amount ?? 0,
+        type: transaction.type ?? "gasto",
+        category_id: transaction.category_id ?? undefined,
+        date: transaction.date ? new Date(transaction.date) : new Date(),
+        description: transaction.description ?? undefined,
       }
     : {
+        amount: 0,
         type: "gasto",
+        category_id: undefined,
         date: new Date(),
+        description: undefined,
       }
 
   const form = useForm<FormValues>({
@@ -67,41 +82,38 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
     setIsSubmitting(true)
 
     try {
-      // Formatear la fecha como YYYY-MM
-      const formattedDate = format(values.date, "yyyy-MM")
+      // Formatear la fecha como YYYY-MM-DD
+      const formattedDate = format(values.date, "yyyy-MM-dd")
+
+      // description debe ser string | null para la base de datos
+      const dbDescription = values.description ?? null;
 
       if (transaction) {
         // Actualizar transacción existente
         updateTransaction(transaction.id, {
           amount: values.amount,
           type: values.type,
-          category: values.category,
+          category_id: values.category_id,
           date: formattedDate,
-          notes: values.notes,
+          description: dbDescription,
         })
       } else {
         // Agregar nueva transacción
         addTransaction({
           amount: values.amount,
           type: values.type,
-          category: values.category as Transaction["category"],
+          category_id: values.category_id,
           date: formattedDate,
-          notes: values.notes,
-        })
-
-        // Resetear el formulario después de agregar
-        form.reset({
-          amount: undefined,
-          type: "gasto",
-          category: undefined,
-          date: new Date(),
-          notes: "",
+          description: dbDescription,
         })
       }
 
       if (onSuccess) {
         onSuccess()
       }
+    } catch (error) {
+      console.error('Error al procesar la transacción:', error)
+      toast({ title: 'Error al procesar la transacción' })
     } finally {
       setIsSubmitting(false)
     }
@@ -120,7 +132,7 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
               <FormItem>
                 <FormLabel>Monto</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.01" placeholder="0.00" {...field} />
+                  <Input type="number" step="0.01" placeholder="0.00" {...field} value={field.value ?? ""} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -157,34 +169,22 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
         <div className="grid gap-6 md:grid-cols-2">
           <FormField
             control={form.control}
-            name="category"
+            name="category_id"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Categoría</FormLabel>
-                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                   <FormControl>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona una categoría" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {transactionType === "ingreso" ? (
-                      <>
-                        <SelectItem value="salario">Salario</SelectItem>
-                        <SelectItem value="inversiones">Inversiones</SelectItem>
-                        <SelectItem value="otros_ingresos">Otros ingresos</SelectItem>
-                      </>
-                    ) : (
-                      <>
-                        <SelectItem value="alimentacion">Alimentación</SelectItem>
-                        <SelectItem value="transporte">Transporte</SelectItem>
-                        <SelectItem value="vivienda">Vivienda</SelectItem>
-                        <SelectItem value="entretenimiento">Entretenimiento</SelectItem>
-                        <SelectItem value="salud">Salud</SelectItem>
-                        <SelectItem value="educacion">Educación</SelectItem>
-                        <SelectItem value="otros_gastos">Otros gastos</SelectItem>
-                      </>
-                    )}
+                    {categories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <FormMessage />
@@ -233,7 +233,7 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
 
         <FormField
           control={form.control}
-          name="notes"
+          name="description"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Notas (opcional)</FormLabel>
@@ -241,7 +241,7 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
                 <Textarea
                   placeholder="Agrega detalles adicionales sobre esta transacción"
                   className="resize-none"
-                  value={field.value || ""}
+                  value={field.value ?? ""}
                   onChange={field.onChange}
                   onBlur={field.onBlur}
                   name={field.name}

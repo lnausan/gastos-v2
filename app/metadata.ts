@@ -10,13 +10,15 @@ export const metadata: Metadata = {
   authors: [{ name: 'Tu Nombre' }],
   generator: 'Next.js',
   keywords: ['gastos', 'finanzas personales', 'control de gastos'],
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-  },
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
-  ],
-} 
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+}
+
+export const themeColor = [
+  { media: '(prefers-color-scheme: light)', color: 'white' },
+  { media: '(prefers-color-scheme: dark)', color: 'black' },
+] 
