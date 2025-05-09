@@ -3,6 +3,7 @@
 import type { MonthSummary } from "@/types/transaction"
 import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
 import { useState, useEffect } from "react"
+import { ArrowUpIcon, ArrowDownIcon, EqualIcon } from "lucide-react"
 
 const supabase = createClientComponentClient()
 
@@ -18,7 +19,7 @@ const getAllMonthsSummary = async (): Promise<MonthSummary[]> => {
   }
 
   const { data, error } = await supabase
-    .from("transactions")
+    .from("expenses")
     .select("amount, type, date")
     .eq("user_id", user.id)
 
@@ -64,14 +65,29 @@ export default function HistorialPage() {
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-4">Historial de meses</h1>
-      <ul>
-        {summaries.map((summary) => (
-          <li key={summary.month}>
-            {summary.month}: Ingresos: {summary.income}, Gastos: {summary.expense}, Balance: {summary.balance}
-          </li>
-        ))}
-      </ul>
+      <h1 className="text-2xl font-bold mb-6">Historial de meses</h1>
+      <div className="overflow-x-auto">
+        <table className="min-w-full text-sm">
+          <thead>
+            <tr className="text-muted-foreground border-b border-border">
+              <th className="text-left py-2 px-2">Mes</th>
+              <th className="text-right py-2 px-2 font-normal"><ArrowUpIcon className="inline h-4 w-4 text-green-500 mr-1" />Ingresos</th>
+              <th className="text-right py-2 px-2 font-normal"><ArrowDownIcon className="inline h-4 w-4 text-red-500 mr-1" />Gastos</th>
+              <th className="text-right py-2 px-2 font-normal"><EqualIcon className="inline h-4 w-4 text-blue-500 mr-1" />Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+            {summaries.map((summary) => (
+              <tr key={summary.month} className="border-b border-border hover:bg-muted/30 transition">
+                <td className="py-2 px-2 font-medium">{summary.month}</td>
+                <td className="py-2 px-2 text-right text-green-600">{summary.income.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className="py-2 px-2 text-right text-red-600">{summary.expense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td className={`py-2 px-2 text-right font-semibold ${summary.balance >= 0 ? "text-blue-600" : "text-orange-600"}`}>{summary.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

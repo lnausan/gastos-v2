@@ -59,7 +59,7 @@ export default function DollarValue({ month }: DollarValueProps) {
       <CardContent className="pb-2">
         <div className="flex items-baseline">
           <span className="text-3xl font-bold text-blue-700 dark:text-blue-300">
-            {dollarValue ? dollarValue.value.toFixed(2) : "—"}
+            {dollarValue ? dollarValue.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
           </span>
           <span className="ml-1 text-sm text-muted-foreground">{dollarValue ? "ARS" : "No establecido"}</span>
         </div>

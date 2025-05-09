@@ -111,7 +111,7 @@ export default function TransactionList({ month, simplified = false }: Transacti
               <TableRow key={transaction.id}>
                 <TableCell className={transaction.type === "ingreso" ? "text-green-500" : "text-red-500"}>
                   {transaction.type === "ingreso" ? "+" : "-"}
-                  {transaction.amount.toFixed(2)}
+                  {transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </TableCell>
                 {!simplified && (
                   <TableCell>

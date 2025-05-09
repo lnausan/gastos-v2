@@ -82,11 +82,11 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{summary.income.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{summary.income.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               {summary.income > 0 && dollarValue && (
                 <div className="mt-1 flex items-center text-xs text-muted-foreground">
                   <DollarSign className="mr-1 h-3 w-3" />
-                  USD {(summary.income / dollarValue.value).toFixed(2)}
+                  USD {(summary.income / dollarValue.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               )}
             </CardContent>
@@ -100,11 +100,11 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{summary.expense.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{summary.expense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
               {summary.expense > 0 && dollarValue && (
                 <div className="mt-1 flex items-center text-xs text-muted-foreground">
                   <DollarSign className="mr-1 h-3 w-3" />
-                  USD {(summary.expense / dollarValue.value).toFixed(2)}
+                  USD {(summary.expense / dollarValue.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               )}
             </CardContent>
@@ -132,12 +132,12 @@ export default function DashboardPage() {
                   summary.balance >= 0 ? "text-blue-600 dark:text-blue-400" : "text-orange-600 dark:text-orange-400"
                 }`}
               >
-                {summary.balance.toFixed(2)}
+                {summary.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               {dollarValue && (
                 <div className="mt-1 flex items-center text-xs text-muted-foreground">
                   <DollarSign className="mr-1 h-3 w-3" />
-                  USD {(summary.balance / dollarValue.value).toFixed(2)}
+                  USD {(summary.balance / dollarValue.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               )}
             </CardContent>

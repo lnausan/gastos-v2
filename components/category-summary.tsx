@@ -4,45 +4,43 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useTransactions } from "@/context/transaction-context"
 import { useTheme } from "next-themes"
+import { useEffect, useState } from "react"
+import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 interface CategorySummaryProps {
   month: string
   type: "ingreso" | "gasto"
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  // Ingresos
-  salario: "#10B981",
-  inversiones: "#059669",
-  otros_ingresos: "#047857",
-
-  // Gastos
-  alimentacion: "#EF4444",
-  transporte: "#DC2626",
-  vivienda: "#B91C1C",
-  entretenimiento: "#991B1B",
-  salud: "#7F1D1D",
-  educacion: "#F97316",
-  otros_gastos: "#C2410C",
-}
-
-const CATEGORY_LABELS: Record<string, string> = {
-  salario: "Salario",
-  inversiones: "Inversiones",
-  otros_ingresos: "Otros ingresos",
-  alimentacion: "Alimentación",
-  transporte: "Transporte",
-  vivienda: "Vivienda",
-  entretenimiento: "Entretenimiento",
-  salud: "Salud",
-  educacion: "Educación",
-  otros_gastos: "Otros gastos",
-}
+// Paleta elegante y oscura inspirada en la imagen del usuario
+const ELEGANT_DARK_COLORS = [
+  "#1e3a8a", // Azul oscuro (blue-900)
+  "#065f46", // Verde bosque (emerald-900)
+  "#7f1d1d", // Rojo vino (red-900)
+  "#7c2d12", // Naranja quemado (orange-900)
+  "#78350f", // Amarillo oscuro (amber-900)
+  "#4b006e", // Violeta oscuro (custom)
+  "#334155", // Slate oscuro (slate-800)
+  "#0f172a", // Azul noche (slate-900)
+  "#3f3f46", // Gris oscuro (zinc-800)
+  "#27272a", // Gris muy oscuro (zinc-900)
+]
 
 export default function CategorySummary({ month, type }: CategorySummaryProps) {
   const { getMonthCategorySummary, getMonthSummary } = useTransactions()
   const { theme } = useTheme()
   const isDark = theme === "dark"
+
+  const [categories, setCategories] = useState<{ id: string, name: string, color: string }[]>([])
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      const supabase = createClientComponentClient()
+      const { data, error } = await supabase.from('categories').select('id, name, color')
+      if (!error && data) setCategories(data)
+    }
+    fetchCategories()
+  }, [])
 
   const categorySummary = getMonthCategorySummary(month, type)
   const monthSummary = getMonthSummary(month)
@@ -64,12 +62,16 @@ export default function CategorySummary({ month, type }: CategorySummaryProps) {
     )
   }
 
-  // Preparar datos para el gráfico
-  const chartData = categorySummary.map((item) => ({
-    name: CATEGORY_LABELS[item.category] || item.category,
-    value: item.amount,
-    category: item.category,
-  }))
+  // Preparar datos para el gráfico usando SIEMPRE la paleta elegante
+  const chartData = categorySummary.map((item, idx) => {
+    const cat = categories.find(c => c.id === item.category)
+    return {
+      name: cat?.name || item.category,
+      value: item.amount,
+      color: ELEGANT_DARK_COLORS[idx % ELEGANT_DARK_COLORS.length],
+      category: item.category,
+    }
+  })
 
   const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, index }: any) => {
     const RADIAN = Math.PI / 180
@@ -99,7 +101,7 @@ export default function CategorySummary({ month, type }: CategorySummaryProps) {
         <CardDescription>Total: {total.toFixed(2)}</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-[300px]">
+        <div className="h-[420px]">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -108,19 +110,19 @@ export default function CategorySummary({ month, type }: CategorySummaryProps) {
                 cy="50%"
                 labelLine={false}
                 label={renderCustomizedLabel}
-                outerRadius={80}
+                outerRadius={120}
                 fill="#8884d8"
                 dataKey="value"
               >
                 {chartData.map((entry, index) => (
                   <Cell
                     key={`cell-${index}`}
-                    fill={CATEGORY_COLORS[entry.category as keyof typeof CATEGORY_COLORS] || "#8884d8"}
+                    fill={entry.color}
                   />
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number) => value.toFixed(2)}
+                formatter={(value: number) => value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 contentStyle={{
                   backgroundColor: isDark ? "#333" : "#fff",
                   color: isDark ? "#fff" : "#333",
