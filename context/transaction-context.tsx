@@ -69,6 +69,19 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!supabase) return
 
+    // Escuchar cambios de autenticación y recargar datos si es necesario
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        loadData(session.user) // Reutilizamos loadData pasándole el usuario
+      } else if (event === "SIGNED_OUT") {
+        console.log("Sesión cerrada, limpiando datos")
+        setTransactions([])
+        setDollarValues([])
+        localStorage.removeItem(`transactions-${storageId}`)
+        localStorage.removeItem(`dollar-values-${storageId}`)
+      }
+    })
+
     // 1. Cargar datos de localStorage primero
     const cachedTransactions = localStorage.getItem(`transactions-${storageId}`)
     if (cachedTransactions) {
@@ -91,13 +104,12 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
 
     // 2. Luego cargar desde Supabase en segundo plano
-    const loadData = async () => {
+    const loadData = async (userParam?: any) => {
       try {
-        const { data: { user }, error: userError } = await supabase.auth.getUser()
-        if (userError) {
-          console.error('Error al obtener usuario:', userError)
-          throw userError
-        }
+        const user = userParam
+          ? userParam
+          : (await supabase.auth.getUser()).data.user
+
         if (!user) {
           console.error('No hay usuario autenticado')
           return
@@ -144,23 +156,19 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
           try {
             // 1. Verificar autenticación
-            const { data: { user }, error: userError } = await supabase.auth.getUser()
-            if (userError) {
-              console.error('Error al obtener usuario:', userError)
-              return
-            }
-            if (!user) {
+            const userDollar = user
+            if (!userDollar) {
               console.error('No hay usuario autenticado')
               return
             }
 
-            console.log('Cargando historial de valores del dólar para usuario:', user.id)
+            console.log('Cargando historial de valores del dólar para usuario:', userDollar.id)
 
             // 2. Cargar todos los valores históricos
             const { data, error } = await supabase
               .from('dollar_values')
               .select('*')
-              .eq('user_id', user.id)
+              .eq('user_id', userDollar.id)
               .order('month', { ascending: false })
 
             console.log('Respuesta de la carga de dólares:', { data, error })
