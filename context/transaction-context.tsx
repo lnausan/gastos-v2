@@ -7,6 +7,7 @@ import type { Transaction, MonthSummary, DollarValue } from "@/types/transaction
 import { useToast } from "@/components/ui/use-toast"
 import { useSupabase } from '@/components/providers/supabase-provider'
 import { toast } from 'sonner'
+import { format, subMonths } from "date-fns"
 
 interface TransactionContextType {
   transactions: Transaction[]
@@ -21,6 +22,7 @@ interface TransactionContextType {
   getDollarValue: (month: string) => DollarValue | undefined
   updateDollarValue: (month: string, value: number) => Promise<void>
   getMonthCategorySummary: (month: string, type: "ingreso" | "gasto") => { category: string; amount: number }[]
+  isLoading: boolean
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined)
@@ -29,6 +31,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const { supabase } = useSupabase()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [dollarValues, setDollarValues] = useState<DollarValue[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
   const [optimisticTransactions, addOptimisticTransaction] = useOptimistic<
     Transaction[],
@@ -66,26 +69,57 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!supabase) return
 
+    // 1. Cargar datos de localStorage primero
+    const cachedTransactions = localStorage.getItem(`transactions-${storageId}`)
+    if (cachedTransactions) {
+      try {
+        const parsedTransactions = JSON.parse(cachedTransactions)
+        setTransactions(parsedTransactions)
+        setIsLoading(false) // Ya tenemos datos, no mostrar loading
+      } catch (e) {
+        console.error('Error al parsear transacciones del localStorage:', e)
+      }
+    }
+
+    const cachedDollarValues = localStorage.getItem(`dollar-values-${storageId}`)
+    if (cachedDollarValues) {
+      try {
+        setDollarValues(JSON.parse(cachedDollarValues))
+      } catch (e) {
+        console.error('Error al parsear valores del dólar del localStorage:', e)
+      }
+    }
+
+    // 2. Luego cargar desde Supabase en segundo plano
     const loadData = async () => {
       try {
         const { data: { user }, error: userError } = await supabase.auth.getUser()
-        
         if (userError) {
           console.error('Error al obtener usuario:', userError)
           throw userError
         }
-        
         if (!user) {
-          console.log('No hay usuario autenticado')
+          console.error('No hay usuario autenticado')
           return
         }
 
-        console.log('Usuario autenticado:', user.id)
+        // Calcular los últimos 6 meses
+        const today = new Date()
+        const months: string[] = []
+        for (let i = 0; i < 6; i++) {
+          const d = subMonths(today, i)
+          months.push(format(d, "yyyy-MM"))
+        }
 
+        console.log('Buscando transacciones para los meses:', months)
+
+        // Traer solo las transacciones de los últimos 6 meses
         const { data: transactionsData, error: transactionsError } = await supabase
           .from('expenses')
           .select('*')
           .eq('user_id', user.id)
+          .gte('date', `${months[months.length - 1]}-01`)
+          .lte('date', `${months[0]}-31`)
           .order('created_at', { ascending: false })
 
         if (transactionsError) {
@@ -93,42 +127,86 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           throw transactionsError
         }
 
-        console.log('Transacciones cargadas:', transactionsData)
-        setTransactions(transactionsData || [])
-
-        const { data: dollarValuesData, error: dollarValuesError } = await supabase
-          .from('dollar_values')
-          .select('*')
-          .order('month', { ascending: false })
-
-        if (dollarValuesError) {
-          console.error('Error al cargar valores del dólar:', dollarValuesError)
-          throw dollarValuesError
+        if (transactionsData) {
+          console.log('Transacciones cargadas:', transactionsData.length)
+          setTransactions(transactionsData)
+          localStorage.setItem(`transactions-${storageId}`, JSON.stringify(transactionsData))
         }
 
-        console.log('Valores del dólar cargados:', dollarValuesData)
-        setDollarValues(dollarValuesData || [])
+        console.log('Buscando valores del dólar para los meses:', months)
+
+        // Traer todos los valores del dólar del usuario
+        const loadDollarValues = async () => {
+          if (!supabase) {
+            console.error('Supabase no está inicializado')
+            return
+          }
+
+          try {
+            // 1. Verificar autenticación
+            const { data: { user }, error: userError } = await supabase.auth.getUser()
+            if (userError) {
+              console.error('Error al obtener usuario:', userError)
+              return
+            }
+            if (!user) {
+              console.error('No hay usuario autenticado')
+              return
+            }
+
+            console.log('Cargando historial de valores del dólar para usuario:', user.id)
+
+            // 2. Cargar todos los valores históricos
+            const { data, error } = await supabase
+              .from('dollar_values')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('month', { ascending: false })
+
+            console.log('Respuesta de la carga de dólares:', { data, error })
+
+            if (error) {
+              console.error('Error al cargar valores del dólar:', error)
+              return
+            }
+
+            if (!data) {
+              console.log('No se encontraron valores del dólar')
+              setDollarValues([])
+              localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify([]))
+              return
+            }
+
+            console.log('Historial de valores del dólar cargados:', data)
+            setDollarValues(data)
+            localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(data))
+
+          } catch (error) {
+            console.error('Error inesperado al cargar valores del dólar:', error)
+            setDollarValues([])
+            localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify([]))
+          }
+        }
+
+        // Ejecutar la carga de datos
+        await loadDollarValues()
       } catch (error) {
-        console.error('Error al cargar datos:', error)
-        toast({
-          title: 'Error al cargar los datos',
-          description: error instanceof Error ? error.message : 'Error desconocido',
-          variant: 'destructive'
-        })
+        console.error('Error detallado al cargar datos:', error)
+        // No mostrar el error al usuario si ya tenemos datos en localStorage
+        if (transactions.length === 0) {
+          toast({
+            title: 'Error al cargar los datos',
+            description: error instanceof Error ? error.message : 'Error desconocido',
+            variant: 'destructive'
+          })
+        }
+      } finally {
+        setIsLoading(false)
       }
     }
 
     loadData()
   }, [supabase])
-
-  // Guardar transacciones y valores del dólar en localStorage cuando cambian
-  useEffect(() => {
-    localStorage.setItem(`transactions-${storageId}`, JSON.stringify(transactions))
-  }, [transactions, storageId])
-
-  useEffect(() => {
-    localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(dollarValues))
-  }, [dollarValues, storageId])
 
   // Agregar una nueva transacción
   const addTransaction = async (transaction: Omit<Transaction, "id" | "created_at" | "updated_at" | "user_id">) => {
@@ -148,7 +226,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         category_id: transaction.category_id,
         user_id: user.id,
         type: transaction.type,
-      }
+    }
 
       console.log('Insertando en Supabase:', expenseToInsert)
 
@@ -313,15 +391,26 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   // Obtener todos los meses del año actual para el gráfico de líneas
   const getAllMonthsSummary = (): MonthSummary[] => {
-    const currentYear = new Date().getFullYear()
-    const months: string[] = []
+    // Obtener todos los meses únicos de las transacciones
+    const months = Array.from(new Set(transactions.map(t => t.date.substring(0, 7))))
+      .sort((a, b) => b.localeCompare(a)) // Ordenar de más reciente a más antiguo
 
-    for (let i = 0; i < 12; i++) {
-      const month = `${currentYear}-${String(i + 1).padStart(2, '0')}`
-      months.push(month)
-    }
+    return months.map(month => {
+      const monthTransactions = transactions.filter(t => t.date.startsWith(month))
+      const income = monthTransactions
+        .filter(t => t.type === 'ingreso')
+        .reduce((sum, t) => sum + Number(t.amount), 0)
+      const expense = monthTransactions
+        .filter(t => t.type === 'gasto')
+        .reduce((sum, t) => sum + Number(t.amount), 0)
 
-    return months.map((month) => getMonthSummary(month))
+      return {
+        month,
+        income,
+        expense,
+        balance: income - expense
+      }
+    })
   }
 
   // Obtener el valor del dólar para un mes específico
@@ -331,44 +420,57 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   // Actualizar el valor del dólar para un mes específico
   const updateDollarValue = async (month: string, value: number) => {
-    if (!supabase) return
+    if (!supabase) {
+      console.error('Supabase no está inicializado')
+      throw new Error('Supabase no está inicializado')
+    }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        console.error('No se pudo obtener el usuario autenticado')
-        return
+      const { data: { user }, error: userError } = await supabase.auth.getUser()
+      if (userError) {
+        console.error('Error al obtener usuario:', userError)
+        throw new Error('Error al obtener usuario')
       }
-      const existingDollar = dollarValues.find((d) => d.month === month)
-      const dollarValue = {
-        id: existingDollar?.id,
-        month,
-        value,
-        user_id: user.id,
-        updated_at: new Date().toISOString(),
+      if (!user) {
+        console.error('No hay usuario autenticado')
+        throw new Error('No hay usuario autenticado')
       }
 
-      const { data, error } = await supabase
+      console.log('Actualizando o insertando valor del dólar:', { user_id: user.id, month, value })
+
+      const { data: upsertData, error: upsertError } = await supabase
         .from('dollar_values')
-        .upsert(dollarValue, { onConflict: 'month' })
+        .upsert(
+          [{
+            user_id: user.id,
+            month,
+            value,
+          }],
+          { onConflict: 'user_id,month' }
+        )
         .select()
         .single()
 
-      if (error) throw error
+      if (upsertError) {
+        console.error('Error al insertar o actualizar:', upsertError)
+        throw new Error(`Error al insertar o actualizar: ${upsertError.message}`)
+      }
 
-      setDollarValues((prev) => {
-        const existingIndex = prev.findIndex((d) => d.month === month)
-        if (existingIndex >= 0) {
-          return prev.map((d) => (d.month === month ? data : d))
+      setDollarValues(prev => {
+        const newValues = [...prev]
+        const index = newValues.findIndex(d => d.month === month)
+        if (index >= 0) {
+          newValues[index] = upsertData
         } else {
-          return [...prev, data]
+          newValues.push(upsertData)
         }
+        localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(newValues))
+        return newValues
       })
 
-      toast({ title: 'Valor del dólar actualizado correctamente' })
+      return upsertData
     } catch (error) {
-      console.error('Error al actualizar valor del dólar:', error)
-      toast({ title: 'Error al actualizar el valor del dólar' })
+      console.error('Error al actualizar el valor del dólar:', error)
       throw error
     }
   }
@@ -388,6 +490,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         getDollarValue,
         updateDollarValue,
         getMonthCategorySummary,
+        isLoading,
       }}
     >
       {children}

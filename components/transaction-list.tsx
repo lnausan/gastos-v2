@@ -111,7 +111,7 @@ export default function TransactionList({ month, simplified = false }: Transacti
               <TableRow key={transaction.id}>
                 <TableCell className={transaction.type === "ingreso" ? "text-green-500" : "text-red-500"}>
                   {transaction.type === "ingreso" ? "+" : "-"}
-                  {transaction.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  {transaction.amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </TableCell>
                 {!simplified && (
                   <TableCell>
@@ -137,15 +137,15 @@ export default function TransactionList({ month, simplified = false }: Transacti
                       size="icon"
                       onClick={() => setEditingTransaction(transaction)}
                     >
-                      <Edit className="h-4 w-4" />
-                    </Button>
+                        <Edit className="h-4 w-4" />
+                      </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDelete(transaction.id)}
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                   </TableCell>
                 )}
               </TableRow>

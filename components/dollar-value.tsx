@@ -29,6 +29,9 @@ export default function DollarValue({ month }: DollarValueProps) {
   const dollarValue = getDollarValue(month)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
+  // Log para depuración del valor del dólar
+  console.log('Valor del dólar para', month, ':', dollarValue)
+
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -42,8 +45,10 @@ export default function DollarValue({ month }: DollarValueProps) {
     return format(date, "MMMM yyyy", { locale: es })
   }
 
-  const onSubmit = (data: FormValues) => {
-    updateDollarValue(month, data.value)
+  const onSubmit = async (data: FormValues) => {
+    const result = await updateDollarValue(month, data.value)
+    // Log para depuración del resultado del upsert
+    console.log('Resultado de updateDollarValue:', result)
     setIsDialogOpen(false)
   }
 
@@ -59,7 +64,7 @@ export default function DollarValue({ month }: DollarValueProps) {
       <CardContent className="pb-2">
         <div className="flex items-baseline">
           <span className="text-3xl font-bold text-blue-700 dark:text-blue-300">
-            {dollarValue ? dollarValue.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
+            {dollarValue ? dollarValue.value.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
           </span>
           <span className="ml-1 text-sm text-muted-foreground">{dollarValue ? "ARS" : "No establecido"}</span>
         </div>

@@ -1,90 +1,88 @@
 "use client"
 
-import type { MonthSummary } from "@/types/transaction"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
-import { useState, useEffect } from "react"
-import { ArrowUpIcon, ArrowDownIcon, EqualIcon } from "lucide-react"
+import { useTransactions } from "@/context/transaction-context"
+import { ArrowUpIcon, ArrowDownIcon, EqualIcon, DollarSign } from "lucide-react"
 
-const supabase = createClientComponentClient()
+const MONTHS_ES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
+]
 
-const getAllMonthsSummary = async (): Promise<MonthSummary[]> => {
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser()
-
-  if (userError || !user) {
-    console.error("Usuario no autenticado", userError)
-    return []
-  }
-
-  const { data, error } = await supabase
-    .from("expenses")
-    .select("amount, type, date")
-    .eq("user_id", user.id)
-
-  if (error || !data) {
-    console.error("Error al obtener transacciones:", error)
-    return []
-  }
-
-  const resumen: Record<string, MonthSummary> = {}
-
-  data.forEach((tx) => {
-    const [year, month] = tx.date.split("-")
-    const key = `${year}-${month}`
-
-    if (!resumen[key]) {
-      resumen[key] = {
-        month: key,
-        income: 0,
-        expense: 0,
-        balance: 0,
-      }
-    }
-
-    const amount = Number(tx.amount)
-    if (tx.type === "ingreso") {
-      resumen[key].income += amount
-    } else {
-      resumen[key].expense += amount
-    }
-
-    resumen[key].balance = resumen[key].income - resumen[key].expense
-  })
-
-  return Object.values(resumen)
+function formatMonth(month: string) {
+  const [year, m] = month.split('-')
+  return `${MONTHS_ES[parseInt(m, 10) - 1]} ${year}`
 }
 
 export default function HistorialPage() {
-  const [summaries, setSummaries] = useState<MonthSummary[]>([])
+  const { getAllMonthsSummary, dollarValues } = useTransactions()
+  const summaries = getAllMonthsSummary()
 
-  useEffect(() => {
-    getAllMonthsSummary().then(setSummaries)
-  }, [])
+  // Unir el valor del dólar a cada mes
+  const data = summaries.map((summary) => {
+    const dollar = dollarValues.find((d) => d.month === summary.month)
+    return { ...summary, dollar: dollar?.value }
+  })
+
+  // Solo mostrar meses con algún dato relevante
+  const filtered = data.filter(
+    d => d.income !== 0 || d.expense !== 0 || d.dollar !== undefined
+  )
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-2xl font-bold mb-6">Historial de meses</h1>
+      <h1 className="text-2xl font-bold mb-6">Historial mensual</h1>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead>
             <tr className="text-muted-foreground border-b border-border">
               <th className="text-left py-2 px-2">Mes</th>
-              <th className="text-right py-2 px-2 font-normal"><ArrowUpIcon className="inline h-4 w-4 text-green-500 mr-1" />Ingresos</th>
-              <th className="text-right py-2 px-2 font-normal"><ArrowDownIcon className="inline h-4 w-4 text-red-500 mr-1" />Gastos</th>
-              <th className="text-right py-2 px-2 font-normal"><EqualIcon className="inline h-4 w-4 text-blue-500 mr-1" />Balance</th>
+              <th className="text-right py-2 px-2 font-normal">
+                <ArrowUpIcon className="inline h-4 w-4 text-green-500 mr-1" />
+                Ingresos
+              </th>
+              <th className="text-right py-2 px-2 font-normal">
+                <ArrowDownIcon className="inline h-4 w-4 text-red-500 mr-1" />
+                Gastos
+              </th>
+              <th className="text-right py-2 px-2 font-normal">
+                <EqualIcon className="inline h-4 w-4 text-blue-500 mr-1" />
+                Balance
+              </th>
+              <th className="text-right py-2 px-2 font-normal">
+                <DollarSign className="inline h-4 w-4 text-yellow-500 mr-1" />
+                Dólar
+              </th>
             </tr>
           </thead>
           <tbody>
-            {summaries.map((summary) => (
-              <tr key={summary.month} className="border-b border-border hover:bg-muted/30 transition">
-                <td className="py-2 px-2 font-medium">{summary.month}</td>
-                <td className="py-2 px-2 text-right text-green-600">{summary.income.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td className="py-2 px-2 text-right text-red-600">{summary.expense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                <td className={`py-2 px-2 text-right font-semibold ${summary.balance >= 0 ? "text-blue-600" : "text-orange-600"}`}>{summary.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-4 text-center text-muted-foreground">
+                  No hay datos registrados
+                </td>
               </tr>
-            ))}
+            ) : (
+              filtered.map((d) => (
+                <tr key={d.month} className="border-b border-border hover:bg-muted/30 transition">
+                  <td className="py-2 px-2 font-medium">{formatMonth(d.month)}</td>
+                  <td className="py-2 px-2 text-right text-green-600">
+                    ${d.income.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2 px-2 text-right text-red-600">
+                    ${d.expense.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className={`py-2 px-2 text-right font-semibold ${d.balance >= 0 ? "text-blue-600" : "text-orange-600"}`}>
+                    ${d.balance.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td className="py-2 px-2 text-right text-yellow-600">
+                    {d.dollar !== undefined
+                      ? `$${Number(d.dollar).toLocaleString('es-AR', { minimumFractionDigits: 2 })}`
+                      : <span className="text-muted-foreground">No establecido</span>
+                    }
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

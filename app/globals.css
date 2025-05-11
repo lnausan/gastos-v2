@@ -57,3 +57,23 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Agregar transiciones suaves para elementos específicos */
+.card, .button, .input, .select, .textarea {
+  @apply transition-colors duration-300;
+}
+
+/* Transiciones para gradientes */
+.bg-gradient-to-br {
+  @apply transition-all duration-300;
+}
+
+/* Transiciones para bordes */
+.border {
+  @apply transition-colors duration-300;
+}
+
+/* Transiciones para textos */
+.text-foreground, .text-muted-foreground {
+  @apply transition-colors duration-300;
+}

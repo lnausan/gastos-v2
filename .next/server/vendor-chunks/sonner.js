@@ -11,6 +11,36 @@ exports.id = "vendor-chunks/sonner";
 exports.ids = ["vendor-chunks/sonner"];
 exports.modules = {
 
+/***/ "(rsc)/./node_modules/sonner/dist/index.mjs":
+/*!********************************************!*\
+  !*** ./node_modules/sonner/dist/index.mjs ***!
+  \********************************************/
+/***/ ((__unused_webpack___webpack_module__, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   Toaster: () => (/* binding */ Toaster),
+/* harmony export */   toast: () => (/* binding */ toast),
+/* harmony export */   useSonner: () => (/* binding */ useSonner)
+/* harmony export */ });
+/* harmony import */ var react_server_dom_webpack_server_edge__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! react-server-dom-webpack/server.edge */ "(rsc)/./node_modules/next/dist/server/route-modules/app-page/vendored/rsc/react-server-dom-webpack-server-edge.js");
+
+const Toaster = (0,react_server_dom_webpack_server_edge__WEBPACK_IMPORTED_MODULE_0__.registerClientReference)(
+function() { throw new Error("Attempted to call Toaster() from the server but Toaster is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."); },
+"/Users/lnausan/Documents/Gastos V2/node_modules/sonner/dist/index.mjs",
+"Toaster",
+);const toast = (0,react_server_dom_webpack_server_edge__WEBPACK_IMPORTED_MODULE_0__.registerClientReference)(
+function() { throw new Error("Attempted to call toast() from the server but toast is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."); },
+"/Users/lnausan/Documents/Gastos V2/node_modules/sonner/dist/index.mjs",
+"toast",
+);const useSonner = (0,react_server_dom_webpack_server_edge__WEBPACK_IMPORTED_MODULE_0__.registerClientReference)(
+function() { throw new Error("Attempted to call useSonner() from the server but useSonner is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."); },
+"/Users/lnausan/Documents/Gastos V2/node_modules/sonner/dist/index.mjs",
+"useSonner",
+);
+
+/***/ }),
+
 /***/ "(ssr)/./node_modules/sonner/dist/index.mjs":
 /*!********************************************!*\
   !*** ./node_modules/sonner/dist/index.mjs ***!

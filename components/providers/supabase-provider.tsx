@@ -21,6 +21,20 @@ export default function SupabaseProvider({
     return createClientComponentClient<Database>()
   })
 
+  useEffect(() => {
+    if (!supabase) return
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('Auth state changed:', event, session)
+    })
+
+    return () => {
+      subscription.unsubscribe()
+    }
+  }, [supabase])
+
   return (
     <Context.Provider value={{ supabase }}>
       {children}

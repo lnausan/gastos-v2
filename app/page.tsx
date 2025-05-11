@@ -16,6 +16,7 @@ import MonthSelector from "@/components/month-selector"
 import DollarValue from "@/components/dollar-value"
 import CategorySummary from "@/components/category-summary"
 import { useTransactions } from "@/context/transaction-context"
+import DashboardSkeleton from '@/components/dashboard-skeleton'
 
 function ChartSkeleton() {
   return (
@@ -30,12 +31,26 @@ function BarChartWithData({ data }: { data: any }) {
 }
 
 export default function DashboardPage() {
-  const { getLastSixMonthsSummary, getMonthSummary, getDollarValue } = useTransactions()
+  const { getLastSixMonthsSummary, getMonthSummary, getDollarValue, isLoading, transactions } = useTransactions()
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"))
   const [isFormOpen, setIsFormOpen] = useState(false)
 
   const summary = getMonthSummary(selectedMonth)
   const dollarValue = getDollarValue(selectedMonth)
+
+  if (isLoading && transactions.length === 0) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">Visualiza y gestiona tus finanzas personales.</p>
+          </div>
+        </div>
+        <DashboardSkeleton />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -82,11 +97,13 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600 dark:text-green-400">{summary.income.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                {summary.income.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
               {summary.income > 0 && dollarValue && (
                 <div className="mt-1 flex items-center text-xs text-muted-foreground">
                   <DollarSign className="mr-1 h-3 w-3" />
-                  USD {(summary.income / dollarValue.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  USD {(summary.income / dollarValue.value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               )}
             </CardContent>
@@ -100,11 +117,13 @@ export default function DashboardPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{summary.expense.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                {summary.expense.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
               {summary.expense > 0 && dollarValue && (
                 <div className="mt-1 flex items-center text-xs text-muted-foreground">
                   <DollarSign className="mr-1 h-3 w-3" />
-                  USD {(summary.expense / dollarValue.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  USD {(summary.expense / dollarValue.value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               )}
             </CardContent>
@@ -132,12 +151,12 @@ export default function DashboardPage() {
                   summary.balance >= 0 ? "text-blue-600 dark:text-blue-400" : "text-orange-600 dark:text-orange-400"
                 }`}
               >
-                {summary.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                {summary.balance.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
               {dollarValue && (
                 <div className="mt-1 flex items-center text-xs text-muted-foreground">
                   <DollarSign className="mr-1 h-3 w-3" />
-                  USD {(summary.balance / dollarValue.value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  USD {(summary.balance / dollarValue.value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               )}
             </CardContent>
@@ -185,7 +204,6 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
       </Tabs>
-
     </div>
   )
 }

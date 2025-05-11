@@ -67,9 +67,9 @@ export default function CategorySummary({ month, type }: CategorySummaryProps) {
     const cat = categories.find(c => c.id === item.category)
     return {
       name: cat?.name || item.category,
-      value: item.amount,
+    value: item.amount,
       color: ELEGANT_DARK_COLORS[idx % ELEGANT_DARK_COLORS.length],
-      category: item.category,
+    category: item.category,
     }
   })
 
