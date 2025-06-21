@@ -1,5 +1,4 @@
-import AuthForm from '@/components/auth/auth-form'
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { AuthForm } from "@/components/auth/auth-form"
 
 export default function AuthPage() {
   return (

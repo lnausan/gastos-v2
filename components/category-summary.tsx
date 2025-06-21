@@ -4,8 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useTransactions } from "@/context/transaction-context"
 import { useTheme } from "next-themes"
-import { useEffect, useState } from "react"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
+import { useState } from "react"
 
 interface CategorySummaryProps {
   month: string
@@ -26,21 +25,24 @@ const ELEGANT_DARK_COLORS = [
   "#27272a", // Gris muy oscuro (zinc-900)
 ]
 
+// Categorías locales para desarrollo sin Supabase
+const LOCAL_CATEGORIES = [
+  { id: "1", name: "Alimentación", color: "#1e3a8a" },
+  { id: "2", name: "Transporte", color: "#065f46" },
+  { id: "3", name: "Entretenimiento", color: "#7f1d1d" },
+  { id: "4", name: "Salud", color: "#7c2d12" },
+  { id: "5", name: "Educación", color: "#78350f" },
+  { id: "6", name: "Vivienda", color: "#4b006e" },
+  { id: "7", name: "Servicios", color: "#334155" },
+  { id: "8", name: "Ropa", color: "#0f172a" },
+  { id: "9", name: "Tecnología", color: "#3f3f46" },
+  { id: "10", name: "Otros", color: "#27272a" },
+]
+
 export default function CategorySummary({ month, type }: CategorySummaryProps) {
   const { getMonthCategorySummary, getMonthSummary } = useTransactions()
   const { theme } = useTheme()
   const isDark = theme === "dark"
-
-  const [categories, setCategories] = useState<{ id: string, name: string, color: string }[]>([])
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      const supabase = createClientComponentClient()
-      const { data, error } = await supabase.from('categories').select('id, name, color')
-      if (!error && data) setCategories(data)
-    }
-    fetchCategories()
-  }, [])
 
   const categorySummary = getMonthCategorySummary(month, type)
   const monthSummary = getMonthSummary(month)
@@ -64,7 +66,7 @@ export default function CategorySummary({ month, type }: CategorySummaryProps) {
 
   // Preparar datos para el gráfico usando SIEMPRE la paleta elegante
   const chartData = categorySummary.map((item, idx) => {
-    const cat = categories.find(c => c.id === item.category)
+    const cat = LOCAL_CATEGORIES.find(c => c.id === item.category)
     return {
       name: cat?.name || item.category,
     value: item.amount,

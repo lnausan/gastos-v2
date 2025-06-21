@@ -1,12 +1,19 @@
 {
-  "name": "my-v0-project",
-  "version": "0.1.0",
+  "name": "gastos-v2",
+  "version": "1.0.0",
+  "description": "Aplicación de gestión de gastos personales con Firebase y Next.js",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "setup": "./scripts/setup.sh",
+    "deploy": "vercel --prod",
+    "deploy:preview": "vercel",
+    "clean": "rm -rf .next out",
+    "install:legacy": "npm install --legacy-peer-deps"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",
@@ -44,6 +51,7 @@
     "cmdk": "1.0.4",
     "date-fns": "latest",
     "embla-carousel-react": "8.5.1",
+    "firebase": "^11.9.1",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
     "next": "15.2.4",

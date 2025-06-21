@@ -46,7 +46,7 @@ export default function MonthSelector({ value, onChange }: MonthSelectorProps) {
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0">
         <Calendar
-          mode="month"
+          mode="single"
           selected={date}
           onSelect={handleSelect}
           disabled={(date) => date > new Date() || date < new Date("1900-01-01")}

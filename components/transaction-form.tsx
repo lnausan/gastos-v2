@@ -7,7 +7,6 @@ import * as z from "zod"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { CalendarIcon } from "lucide-react"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 import { toast } from "@/components/ui/use-toast"
 
 import { Button } from "@/components/ui/button"
@@ -42,20 +41,24 @@ interface TransactionFormProps {
   onSuccess?: () => void
 }
 
+// Categorías locales para desarrollo sin Supabase
+const LOCAL_CATEGORIES = [
+  { id: "1", name: "Alimentación" },
+  { id: "2", name: "Transporte" },
+  { id: "3", name: "Entretenimiento" },
+  { id: "4", name: "Salud" },
+  { id: "5", name: "Educación" },
+  { id: "6", name: "Vivienda" },
+  { id: "7", name: "Servicios" },
+  { id: "8", name: "Ropa" },
+  { id: "9", name: "Tecnología" },
+  { id: "10", name: "Otros" },
+]
+
 export default function TransactionForm({ transaction, onSuccess }: TransactionFormProps) {
   const { addTransaction, updateTransaction } = useTransactions()
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [categories, setCategories] = useState<{ id: string, name: string }[]>([])
   const formId = useId()
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      const supabase = createClientComponentClient()
-      const { data, error } = await supabase.from('categories').select('id, name')
-      if (!error && data) setCategories(data)
-    }
-    fetchCategories()
-  }, [])
 
   const defaultValues: Partial<FormValues> = transaction
     ? {
@@ -180,7 +183,7 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {categories.map((cat) => (
+                    {LOCAL_CATEGORIES.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         {cat.name}
                       </SelectItem>

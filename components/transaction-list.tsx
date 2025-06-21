@@ -1,10 +1,9 @@
 "use client"
 
-import { useState, useTransition, useEffect } from "react"
+import { useState, useTransition } from "react"
 import { format, parse } from "date-fns"
 import { es } from "date-fns/locale"
 import { Edit, Trash2 } from "lucide-react"
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -30,34 +29,25 @@ interface TransactionListProps {
   simplified?: boolean
 }
 
-const categoryLabels: Record<string, string> = {
-  salario: "Salario",
-  inversiones: "Inversiones",
-  otros_ingresos: "Otros ingresos",
-  alimentacion: "Alimentación",
-  transporte: "Transporte",
-  vivienda: "Vivienda",
-  entretenimiento: "Entretenimiento",
-  salud: "Salud",
-  educacion: "Educación",
-  otros_gastos: "Otros gastos",
-}
+// Categorías locales para desarrollo sin Supabase
+const LOCAL_CATEGORIES = [
+  { id: "1", name: "Alimentación" },
+  { id: "2", name: "Transporte" },
+  { id: "3", name: "Entretenimiento" },
+  { id: "4", name: "Salud" },
+  { id: "5", name: "Educación" },
+  { id: "6", name: "Vivienda" },
+  { id: "7", name: "Servicios" },
+  { id: "8", name: "Ropa" },
+  { id: "9", name: "Tecnología" },
+  { id: "10", name: "Otros" },
+]
 
 export default function TransactionList({ month, simplified = false }: TransactionListProps) {
   const { getMonthTransactions, deleteTransaction } = useTransactions()
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [isPending, startTransition] = useTransition()
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
-  const [categories, setCategories] = useState<{ id: string, name: string }[]>([])
-
-  useEffect(() => {
-    const fetchCategories = async () => {
-      const supabase = createClientComponentClient()
-      const { data, error } = await supabase.from('categories').select('id, name')
-      if (!error && data) setCategories(data)
-    }
-    fetchCategories()
-  }, [])
 
   const transactions = getMonthTransactions(month)
 
@@ -127,7 +117,7 @@ export default function TransactionList({ month, simplified = false }: Transacti
                     </Badge>
                   </TableCell>
                 )}
-                <TableCell>{categories.find(cat => cat.id === transaction.category_id)?.name || "Sin categoría"}</TableCell>
+                <TableCell>{LOCAL_CATEGORIES.find(cat => cat.id === transaction.category_id)?.name || "Sin categoría"}</TableCell>
                 {!simplified && <TableCell>{formatDate(transaction.date)}</TableCell>}
                 {!simplified && <TableCell>{transaction.description}</TableCell>}
                 {!simplified && (

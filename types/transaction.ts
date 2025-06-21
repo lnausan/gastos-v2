@@ -35,6 +35,7 @@ export interface DollarValue {
   id: string
   month: string // formato: YYYY-MM
   value: number
+  user_id: string
   created_at: string
   updated_at: string
 }

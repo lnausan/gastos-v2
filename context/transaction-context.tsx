@@ -1,13 +1,11 @@
 "use client"
 
 import type React from "react"
-
-import { createContext, useContext, useEffect, useState, useId, useOptimistic, startTransition } from "react"
+import { createContext, useContext, useEffect, useState, useId } from "react"
 import type { Transaction, MonthSummary, DollarValue } from "@/types/transaction"
-import { useToast } from "@/components/ui/use-toast"
-import { useSupabase } from '@/components/providers/supabase-provider'
 import { toast } from 'sonner'
-import { format, subMonths } from "date-fns"
+import { useAuth } from '@/hooks/use-auth'
+import { transactionsService } from '@/lib/transactions'
 
 interface TransactionContextType {
   transactions: Transaction[]
@@ -23,319 +21,283 @@ interface TransactionContextType {
   updateDollarValue: (month: string, value: number) => Promise<void>
   getMonthCategorySummary: (month: string, type: "ingreso" | "gasto") => { category: string; amount: number }[]
   isLoading: boolean
+  isFirebaseEnabled: boolean
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined)
 
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
-  const { supabase } = useSupabase()
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [dollarValues, setDollarValues] = useState<DollarValue[]>([])
   const [isLoading, setIsLoading] = useState(true)
-
-  const [optimisticTransactions, addOptimisticTransaction] = useOptimistic<
-    Transaction[],
-    { action: "add" | "update" | "delete"; data: any }
-  >(transactions, (state, { action, data }) => {
-    if (action === "add") {
-      return [...state, data]
-    } else if (action === "update") {
-      return state.map((t) => (t.id === data.id ? { ...t, ...data.transaction } : t))
-    } else if (action === "delete") {
-      return state.filter((t) => t.id !== data.id)
-    }
-    return state
-  })
-
-  const [optimisticDollarValues, addOptimisticDollarValue] = useOptimistic<
-    DollarValue[],
-    { action: "update"; data: any }
-  >(dollarValues, (state, { action, data }) => {
-    if (action === "update") {
-      const existingIndex = state.findIndex((d) => d.month === data.month)
-      if (existingIndex >= 0) {
-        return state.map((d) => (d.month === data.month ? data : d))
-      } else {
-        return [...state, data]
-      }
-    }
-    return state
-  })
-
-  const { toast } = useToast()
+  const [isFirebaseEnabled, setIsFirebaseEnabled] = useState(false)
   const storageId = useId()
+  const { user } = useAuth()
 
-  // Cargar transacciones y valores del dólar desde localStorage al iniciar
+  // Verificar si Firebase está configurado
   useEffect(() => {
-    if (!supabase) return
-
-    // Escuchar cambios de autenticación y recargar datos si es necesario
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session?.user) {
-        loadData(session.user) // Reutilizamos loadData pasándole el usuario
-      } else if (event === "SIGNED_OUT") {
-        console.log("Sesión cerrada, limpiando datos")
-        setTransactions([])
-        setDollarValues([])
-        localStorage.removeItem(`transactions-${storageId}`)
-        localStorage.removeItem(`dollar-values-${storageId}`)
-      }
-    })
-
-    // 1. Cargar datos de localStorage primero
-    const cachedTransactions = localStorage.getItem(`transactions-${storageId}`)
-    if (cachedTransactions) {
-      try {
-        const parsedTransactions = JSON.parse(cachedTransactions)
-        setTransactions(parsedTransactions)
-        setIsLoading(false) // Ya tenemos datos, no mostrar loading
-      } catch (e) {
-        console.error('Error al parsear transacciones del localStorage:', e)
-      }
+    const checkFirebaseConfig = () => {
+      const hasConfig = !!(
+        process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+        process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+      )
+      setIsFirebaseEnabled(hasConfig)
+      console.log('Firebase configurado:', hasConfig)
     }
+    
+    checkFirebaseConfig()
+  }, [])
 
-    const cachedDollarValues = localStorage.getItem(`dollar-values-${storageId}`)
-    if (cachedDollarValues) {
+  // Cargar datos iniciales
+  useEffect(() => {
+    const loadInitialData = async () => {
       try {
-        setDollarValues(JSON.parse(cachedDollarValues))
-      } catch (e) {
-        console.error('Error al parsear valores del dólar del localStorage:', e)
-      }
-    }
-
-    // 2. Luego cargar desde Supabase en segundo plano
-    const loadData = async (userParam?: any) => {
-      try {
-        const user = userParam
-          ? userParam
-          : (await supabase.auth.getUser()).data.user
-
-        if (!user) {
-          console.error('No hay usuario autenticado')
-          return
-        }
-
-        // Calcular los últimos 6 meses
-        const today = new Date()
-        const months: string[] = []
-        for (let i = 0; i < 6; i++) {
-          const d = subMonths(today, i)
-          months.push(format(d, "yyyy-MM"))
-        }
-
-        console.log('Buscando transacciones para los meses:', months)
-
-        // Traer solo las transacciones de los últimos 6 meses
-        const { data: transactionsData, error: transactionsError } = await supabase
-          .from('expenses')
-          .select('*')
-          .eq('user_id', user.id)
-          .gte('date', `${months[months.length - 1]}-01`)
-          .lte('date', `${months[0]}-31`)
-          .order('created_at', { ascending: false })
-
-        if (transactionsError) {
-          console.error('Error al cargar transacciones:', transactionsError)
-          throw transactionsError
-        }
-
-        if (transactionsData) {
-          console.log('Transacciones cargadas:', transactionsData.length)
-          setTransactions(transactionsData)
-          localStorage.setItem(`transactions-${storageId}`, JSON.stringify(transactionsData))
-        }
-
-        console.log('Buscando valores del dólar para los meses:', months)
-
-        // Traer todos los valores del dólar del usuario
-        const loadDollarValues = async () => {
-          if (!supabase) {
-            console.error('Supabase no está inicializado')
-            return
+        console.log('Cargando datos...')
+        
+        if (isFirebaseEnabled && user) {
+          // Cargar desde Firebase
+          console.log('Cargando desde Firebase...')
+          const result = await transactionsService.getTransactions(user.uid)
+          if (result.success && result.transactions) {
+            setTransactions(result.transactions)
+            console.log('Transacciones cargadas desde Firebase:', result.transactions.length)
+          } else {
+            console.error('Error al cargar desde Firebase:', result.error)
+            loadLocalData()
           }
-
-          try {
-            // 1. Verificar autenticación
-            const userDollar = user
-            if (!userDollar) {
-              console.error('No hay usuario autenticado')
-              return
-            }
-
-            console.log('Cargando historial de valores del dólar para usuario:', userDollar.id)
-
-            // 2. Cargar todos los valores históricos
-            const { data, error } = await supabase
-              .from('dollar_values')
-              .select('*')
-              .eq('user_id', userDollar.id)
-              .order('month', { ascending: false })
-
-            console.log('Respuesta de la carga de dólares:', { data, error })
-
-            if (error) {
-              console.error('Error al cargar valores del dólar:', error)
-              return
-            }
-
-            if (!data) {
-              console.log('No se encontraron valores del dólar')
-              setDollarValues([])
-              localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify([]))
-              return
-            }
-
-            console.log('Historial de valores del dólar cargados:', data)
-            setDollarValues(data)
-            localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(data))
-
-          } catch (error) {
-            console.error('Error inesperado al cargar valores del dólar:', error)
-            setDollarValues([])
-            localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify([]))
-          }
+        } else {
+          // Cargar datos locales
+          loadLocalData()
         }
-
-        // Ejecutar la carga de datos
-        await loadDollarValues()
+        
+        console.log('Datos cargados correctamente')
       } catch (error) {
-        console.error('Error detallado al cargar datos:', error)
-        // No mostrar el error al usuario si ya tenemos datos en localStorage
-        if (transactions.length === 0) {
-          toast({
-            title: 'Error al cargar los datos',
-            description: error instanceof Error ? error.message : 'Error desconocido',
-            variant: 'destructive'
-          })
-        }
+        console.error('Error al cargar datos iniciales:', error)
+        loadLocalData()
+        toast('Error al cargar los datos iniciales')
       } finally {
         setIsLoading(false)
       }
     }
 
-    loadData()
-  }, [supabase])
+    const loadLocalData = () => {
+      // Datos de prueba para desarrollo
+      const mockTransactions: Transaction[] = [
+        {
+          id: '1',
+          amount: 50000,
+          type: 'ingreso',
+          category_id: 'salario',
+          date: '2024-01-15',
+          description: 'Salario enero',
+          created_at: '2024-01-15T10:00:00Z',
+          updated_at: '2024-01-15T10:00:00Z',
+          user_id: 'mock-user'
+        },
+        {
+          id: '2',
+          amount: 15000,
+          type: 'gasto',
+          category_id: 'alimentacion',
+          date: '2024-01-20',
+          description: 'Supermercado',
+          created_at: '2024-01-20T15:30:00Z',
+          updated_at: '2024-01-20T15:30:00Z',
+          user_id: 'mock-user'
+        },
+        {
+          id: '3',
+          amount: 8000,
+          type: 'gasto',
+          category_id: 'transporte',
+          date: '2024-01-22',
+          description: 'Combustible',
+          created_at: '2024-01-22T09:15:00Z',
+          updated_at: '2024-01-22T09:15:00Z',
+          user_id: 'mock-user'
+        },
+        {
+          id: '4',
+          amount: 60000,
+          type: 'ingreso',
+          category_id: 'salario',
+          date: '2024-02-15',
+          description: 'Salario febrero',
+          created_at: '2024-02-15T10:00:00Z',
+          updated_at: '2024-02-15T10:00:00Z',
+          user_id: 'mock-user'
+        },
+        {
+          id: '5',
+          amount: 12000,
+          type: 'gasto',
+          category_id: 'vivienda',
+          date: '2024-02-01',
+          description: 'Alquiler',
+          created_at: '2024-02-01T12:00:00Z',
+          updated_at: '2024-02-01T12:00:00Z',
+          user_id: 'mock-user'
+        }
+      ]
+      
+      const mockDollarValues: DollarValue[] = [
+        {
+          id: '1',
+          month: '2024-01',
+          value: 850,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          user_id: 'mock-user'
+        },
+        {
+          id: '2',
+          month: '2024-02',
+          value: 900,
+          created_at: '2024-02-01T00:00:00Z',
+          updated_at: '2024-02-01T00:00:00Z',
+          user_id: 'mock-user'
+        }
+      ]
+      
+      // Intentar cargar desde localStorage primero
+      const cachedTransactions = localStorage.getItem(`transactions-${storageId}`)
+      const cachedDollarValues = localStorage.getItem(`dollar-values-${storageId}`)
+      
+      if (cachedTransactions) {
+        try {
+          const parsedTransactions = JSON.parse(cachedTransactions)
+          setTransactions(parsedTransactions)
+          console.log('Transacciones cargadas desde localStorage:', parsedTransactions.length)
+        } catch (e) {
+          console.error('Error al parsear transacciones del localStorage:', e)
+          setTransactions(mockTransactions)
+          localStorage.setItem(`transactions-${storageId}`, JSON.stringify(mockTransactions))
+        }
+      } else {
+        setTransactions(mockTransactions)
+        localStorage.setItem(`transactions-${storageId}`, JSON.stringify(mockTransactions))
+      }
+      
+      if (cachedDollarValues) {
+        try {
+          const parsedDollarValues = JSON.parse(cachedDollarValues)
+          setDollarValues(parsedDollarValues)
+          console.log('Valores del dólar cargados desde localStorage:', parsedDollarValues.length)
+        } catch (e) {
+          console.error('Error al parsear valores del dólar del localStorage:', e)
+          setDollarValues(mockDollarValues)
+          localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(mockDollarValues))
+        }
+      } else {
+        setDollarValues(mockDollarValues)
+        localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(mockDollarValues))
+      }
+    }
+
+    loadInitialData()
+  }, [storageId, isFirebaseEnabled, user])
 
   // Agregar una nueva transacción
   const addTransaction = async (transaction: Omit<Transaction, "id" | "created_at" | "updated_at" | "user_id">) => {
-    if (!supabase) return
-
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        console.error('No se pudo obtener el usuario autenticado')
-        return
+      if (isFirebaseEnabled && user) {
+        // Guardar en Firebase
+        const result = await transactionsService.addTransaction(transaction, user.uid)
+        if (result.success) {
+          const newTransaction: Transaction = {
+            ...transaction,
+            id: result.id!,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            user_id: user.uid
+          }
+          setTransactions(prev => [...prev, newTransaction])
+          toast('Transacción agregada correctamente')
+        } else {
+          throw new Error(result.error)
+        }
+      } else {
+        // Guardar localmente
+        const newTransaction: Transaction = {
+          ...transaction,
+          id: Date.now().toString(),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          user_id: 'mock-user'
+        }
+
+        const updatedTransactions = [...transactions, newTransaction]
+        setTransactions(updatedTransactions)
+        localStorage.setItem(`transactions-${storageId}`, JSON.stringify(updatedTransactions))
+        
+        toast('Transacción agregada correctamente')
       }
-
-      const expenseToInsert = {
-        amount: transaction.amount,
-        description: transaction.description,
-        date: transaction.date,
-        category_id: transaction.category_id,
-        user_id: user.id,
-        type: transaction.type,
-    }
-
-      console.log('Insertando en Supabase:', expenseToInsert)
-
-      const { data, error } = await supabase
-        .from('expenses')
-        .insert([expenseToInsert])
-        .select()
-        .single()
-
-      console.log('Respuesta de Supabase:', { data, error })
-
-      if (error) throw error
-
-      // Recargar todas las transacciones para asegurar consistencia
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('expenses')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-
-      if (transactionsError) throw transactionsError
-
-      console.log('Transacciones actualizadas:', transactionsData)
-      setTransactions(transactionsData || [])
-      toast({ title: 'Transacción agregada correctamente' })
     } catch (error) {
       console.error('Error al agregar transacción:', error)
-      toast({ title: 'Error al agregar la transacción' })
+      toast('Error al agregar la transacción')
       throw error
     }
   }
 
   // Actualizar una transacción existente
   const updateTransaction = async (id: string, transaction: Partial<Transaction>) => {
-    if (!supabase) return
-
     try {
-      // Adaptar los campos al esquema de expenses
-      const expenseToUpdate: any = {}
-      if (transaction.amount !== undefined) expenseToUpdate.amount = transaction.amount
-      if (transaction.description !== undefined) expenseToUpdate.description = transaction.description
-      if (transaction.date !== undefined) expenseToUpdate.date = transaction.date
-      if (transaction.category_id !== undefined) expenseToUpdate.category_id = transaction.category_id
-      if (transaction.type !== undefined) expenseToUpdate.type = transaction.type
-
-      console.log('Actualizando transacción:', { id, ...expenseToUpdate })
-
-      const { data, error } = await supabase
-        .from('expenses')
-        .update(expenseToUpdate)
-        .eq('id', id)
-        .select()
-        .single()
-
-      if (error) throw error
-
-      console.log('Transacción actualizada:', data)
-
-      // Recargar todas las transacciones para asegurar consistencia
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('expenses')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (transactionsError) throw transactionsError
-
-      console.log('Transacciones actualizadas:', transactionsData)
-      setTransactions(transactionsData || [])
-      toast({ title: 'Transacción actualizada correctamente' })
+      if (isFirebaseEnabled && user) {
+        // Actualizar en Firebase
+        const result = await transactionsService.updateTransaction(id, transaction)
+        if (result.success) {
+          setTransactions(prev => prev.map(t => 
+            t.id === id 
+              ? { ...t, ...transaction, updated_at: new Date().toISOString() }
+              : t
+          ))
+          toast('Transacción actualizada correctamente')
+        } else {
+          throw new Error(result.error)
+        }
+      } else {
+        // Actualizar localmente
+        const updatedTransactions = transactions.map((t) => 
+          t.id === id 
+            ? { ...t, ...transaction, updated_at: new Date().toISOString() }
+            : t
+        )
+        
+        setTransactions(updatedTransactions)
+        localStorage.setItem(`transactions-${storageId}`, JSON.stringify(updatedTransactions))
+        
+        toast('Transacción actualizada correctamente')
+      }
     } catch (error) {
       console.error('Error al actualizar transacción:', error)
-      toast({ title: 'Error al actualizar la transacción' })
+      toast('Error al actualizar la transacción')
       throw error
     }
   }
 
   // Eliminar una transacción
   const deleteTransaction = async (id: string) => {
-    if (!supabase) return
-
     try {
-      console.log('Eliminando transacción:', id)
-
-      const { error } = await supabase.from('expenses').delete().eq('id', id)
-
-      if (error) throw error
-
-      // Recargar todas las transacciones para asegurar consistencia
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('expenses')
-        .select('*')
-        .order('created_at', { ascending: false })
-
-      if (transactionsError) throw transactionsError
-
-      console.log('Transacciones actualizadas:', transactionsData)
-      setTransactions(transactionsData || [])
-      toast({ title: 'Transacción eliminada correctamente' })
+      if (isFirebaseEnabled && user) {
+        // Eliminar de Firebase
+        const result = await transactionsService.deleteTransaction(id)
+        if (result.success) {
+          setTransactions(prev => prev.filter(t => t.id !== id))
+          toast('Transacción eliminada correctamente')
+        } else {
+          throw new Error(result.error)
+        }
+      } else {
+        // Eliminar localmente
+        const updatedTransactions = transactions.filter((t) => t.id !== id)
+        setTransactions(updatedTransactions)
+        localStorage.setItem(`transactions-${storageId}`, JSON.stringify(updatedTransactions))
+        
+        toast('Transacción eliminada correctamente')
+      }
     } catch (error) {
       console.error('Error al eliminar transacción:', error)
-      toast({ title: 'Error al eliminar la transacción' })
+      toast('Error al eliminar la transacción')
       throw error
     }
   }
@@ -428,57 +390,37 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   // Actualizar el valor del dólar para un mes específico
   const updateDollarValue = async (month: string, value: number) => {
-    if (!supabase) {
-      console.error('Supabase no está inicializado')
-      throw new Error('Supabase no está inicializado')
-    }
-
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-      if (userError) {
-        console.error('Error al obtener usuario:', userError)
-        throw new Error('Error al obtener usuario')
-      }
-      if (!user) {
-        console.error('No hay usuario autenticado')
-        throw new Error('No hay usuario autenticado')
-      }
+      const existingIndex = dollarValues.findIndex(d => d.month === month)
+      let updatedDollarValues: DollarValue[]
 
-      console.log('Actualizando o insertando valor del dólar:', { user_id: user.id, month, value })
-
-      const { data: upsertData, error: upsertError } = await supabase
-        .from('dollar_values')
-        .upsert(
-          [{
-            user_id: user.id,
-            month,
-            value,
-          }],
-          { onConflict: 'user_id,month' }
+      if (existingIndex >= 0) {
+        // Actualizar existente
+        updatedDollarValues = dollarValues.map((d, index) => 
+          index === existingIndex 
+            ? { ...d, value, updated_at: new Date().toISOString() }
+            : d
         )
-        .select()
-        .single()
-
-      if (upsertError) {
-        console.error('Error al insertar o actualizar:', upsertError)
-        throw new Error(`Error al insertar o actualizar: ${upsertError.message}`)
+      } else {
+        // Crear nuevo
+        const newDollarValue: DollarValue = {
+          id: Date.now().toString(),
+          month,
+          value,
+          user_id: 'mock-user',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+        updatedDollarValues = [...dollarValues, newDollarValue]
       }
 
-      setDollarValues(prev => {
-        const newValues = [...prev]
-        const index = newValues.findIndex(d => d.month === month)
-        if (index >= 0) {
-          newValues[index] = upsertData
-        } else {
-          newValues.push(upsertData)
-        }
-        localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(newValues))
-        return newValues
-      })
-
-      return upsertData
+      setDollarValues(updatedDollarValues)
+      localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(updatedDollarValues))
+      
+      toast('Valor del dólar actualizado correctamente')
     } catch (error) {
       console.error('Error al actualizar el valor del dólar:', error)
+      toast('Error al actualizar el valor del dólar')
       throw error
     }
   }
@@ -499,6 +441,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         updateDollarValue,
         getMonthCategorySummary,
         isLoading,
+        isFirebaseEnabled,
       }}
     >
       {children}

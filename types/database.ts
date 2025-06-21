@@ -12,6 +12,17 @@ export type Expense = {
     description: string | null
     date: string
     category_id: string
+    type: 'ingreso' | 'gasto'
+    user_id: string
+    created_at: string
+    updated_at: string
+}
+
+export type DollarValue = {
+    id: string
+    month: string
+    value: number
+    user_id: string
     created_at: string
     updated_at: string
 }
@@ -28,6 +39,11 @@ export type Database = {
                 Row: Expense
                 Insert: Omit<Expense, 'id' | 'created_at' | 'updated_at'>
                 Update: Partial<Omit<Expense, 'id' | 'created_at' | 'updated_at'>>
+            }
+            dollar_values: {
+                Row: DollarValue
+                Insert: Omit<DollarValue, 'id' | 'created_at' | 'updated_at'>
+                Update: Partial<Omit<DollarValue, 'id' | 'created_at' | 'updated_at'>>
             }
         }
     }
