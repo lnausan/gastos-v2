@@ -5,6 +5,7 @@ import { ThemeProvider } from '@/components/providers/theme-provider'
 import { Toaster } from 'sonner'
 import Header from '@/components/layout/header'
 import { TransactionProvider } from "@/context/transaction-context"
+import { AuthGuard } from "@/components/auth/auth-guard"
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -28,12 +29,14 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <TransactionProvider>
-            <div className="min-h-screen flex flex-col">
-              <Header />
-              <main className="flex-1 container py-6">
-                {children}
-              </main>
-            </div>
+            <AuthGuard>
+              <div className="min-h-screen flex flex-col">
+                <Header />
+                <main className="flex-1 container py-6">
+                  {children}
+                </main>
+              </div>
+            </AuthGuard>
             <Toaster />
           </TransactionProvider>
         </ThemeProvider>

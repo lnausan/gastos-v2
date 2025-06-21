@@ -63,6 +63,12 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
             console.log('Transacciones cargadas desde Firebase:', result.transactions.length)
           } else {
             console.error('Error al cargar desde Firebase:', result.error)
+            // Si es un error de índice, mostrar mensaje específico
+            if (result.error && result.error.includes('index')) {
+              toast('Configurando base de datos... Por favor espera unos minutos y recarga la página.')
+            } else {
+              toast('Error al cargar datos desde Firebase')
+            }
             loadLocalData()
           }
         } else {

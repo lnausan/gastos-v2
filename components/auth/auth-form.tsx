@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,6 +15,7 @@ export function AuthForm() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const { signIn, signUp } = useAuth()
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,6 +28,9 @@ export function AuthForm() {
 
       if (result.success) {
         toast(isSignUp ? "Cuenta creada exitosamente" : "Inicio de sesión exitoso")
+        setTimeout(() => {
+          router.push('/')
+        }, 1000)
       } else {
         toast(result.error || "Error en la autenticación")
       }
