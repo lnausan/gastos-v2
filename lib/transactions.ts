@@ -17,8 +17,10 @@ export const transactionsService = {
   // Agregar una nueva transacción
   async addTransaction(transaction: Omit<Transaction, "id" | "created_at" | "updated_at" | "user_id">, userId: string) {
     try {
+      const { date, ...rest } = transaction
       const docRef = await addDoc(collection(db, 'transactions'), {
-        ...transaction,
+        ...rest,
+        date: Timestamp.fromDate(new Date(date)),
         userId,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now()
@@ -33,10 +35,14 @@ export const transactionsService = {
   async updateTransaction(id: string, transaction: Partial<Transaction>) {
     try {
       const docRef = doc(db, 'transactions', id)
-      await updateDoc(docRef, {
-        ...transaction,
-        updatedAt: Timestamp.now()
-      })
+      
+      const updatePayload: { [key: string]: any } = { ...transaction, updatedAt: Timestamp.now() }
+
+      if (transaction.date) {
+        updatePayload.date = Timestamp.fromDate(new Date(transaction.date))
+      }
+
+      await updateDoc(docRef, updatePayload)
       return { success: true }
     } catch (error: any) {
       return { success: false, error: error.message }
@@ -66,10 +72,19 @@ export const transactionsService = {
       
       querySnapshot.forEach((doc) => {
         const data = doc.data()
+        
+        let date: string
+        if (data.date && typeof data.date.toDate === 'function') {
+          date = data.date.toDate().toISOString().split('T')[0]
+        } else {
+          // Asumir que ya es un string YYYY-MM-DD, o que no existe
+          date = data.date
+        }
+        
         transactions.push({
           id: doc.id,
           ...data,
-          date: data.date.toDate().toISOString().split('T')[0]
+          date,
         } as Transaction)
       })
       
@@ -98,10 +113,18 @@ export const transactionsService = {
       
       querySnapshot.forEach((doc) => {
         const data = doc.data()
+
+        let date: string
+        if (data.date && typeof data.date.toDate === 'function') {
+          date = data.date.toDate().toISOString().split('T')[0]
+        } else {
+          date = data.date
+        }
+
         transactions.push({
           id: doc.id,
           ...data,
-          date: data.date.toDate().toISOString().split('T')[0]
+          date,
         } as Transaction)
       })
       
