@@ -22,6 +22,7 @@ interface TransactionContextType {
   getMonthCategorySummary: (month: string, type: "ingreso" | "gasto") => { category: string; amount: number }[]
   isLoading: boolean
   isFirebaseEnabled: boolean
+  clearAllData: () => void
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined)
@@ -202,6 +203,14 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
     loadInitialData()
   }, [storageId, isFirebaseEnabled, user])
+
+  const clearAllData = () => {
+    setTransactions([])
+    setDollarValues([])
+    localStorage.removeItem(`transactions-${storageId}`)
+    localStorage.removeItem(`dollar-values-${storageId}`)
+    toast.success("Sesión cerrada y datos limpiados.")
+  }
 
   // Agregar una nueva transacción
   const addTransaction = async (transaction: Omit<Transaction, "id" | "created_at" | "updated_at" | "user_id">) => {
@@ -431,25 +440,26 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
   }
 
+  const value = {
+    transactions,
+    dollarValues,
+    addTransaction,
+    updateTransaction,
+    deleteTransaction,
+    getMonthTransactions,
+    getMonthSummary,
+    getLastSixMonthsSummary,
+    getAllMonthsSummary,
+    getDollarValue,
+    updateDollarValue,
+    getMonthCategorySummary,
+    isLoading,
+    isFirebaseEnabled,
+    clearAllData,
+  }
+
   return (
-    <TransactionContext.Provider
-      value={{
-        transactions,
-        dollarValues,
-        addTransaction,
-        updateTransaction,
-        deleteTransaction,
-        getMonthTransactions,
-        getMonthSummary,
-        getLastSixMonthsSummary,
-        getAllMonthsSummary,
-        getDollarValue,
-        updateDollarValue,
-        getMonthCategorySummary,
-        isLoading,
-        isFirebaseEnabled,
-      }}
-    >
+    <TransactionContext.Provider value={value}>
       {children}
     </TransactionContext.Provider>
   )
