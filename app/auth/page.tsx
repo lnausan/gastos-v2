@@ -3,27 +3,6 @@
 import { AuthForm } from "@/components/auth/auth-form"
 import { Wallet } from "lucide-react"
 
-// Temporary Debug Component to be removed later
-const DebugEnvVars = () => {
-  return (
-    <div className="mt-4 p-4 border rounded-lg bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900/30 dark:border-yellow-800/50 dark:text-yellow-300">
-      <h3 className="font-bold">Valores de Entorno (DEBUG)</h3>
-      <p className="text-sm">
-        Compara estos valores con tu archivo <code>.env.local</code>. Deben ser idénticos.
-      </p>
-      <ul className="mt-2 text-xs font-mono break-all list-disc list-inside">
-        <li><strong>API_KEY:</strong> {process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "NO DEFINIDO"}</li>
-        <li><strong>AUTH_DOMAIN:</strong> {process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "NO DEFINIDO"}</li>
-        <li><strong>PROJECT_ID:</strong> {process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "NO DEFINIDO"}</li>
-        <li><strong>STORAGE_BUCKET:</strong> {process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "NO DEFINIDO"}</li>
-        <li><strong>MESSAGING_SENDER_ID:</strong> {process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "NO DEFINIDO"}</li>
-        <li><strong>APP_ID:</strong> {process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "NO DEFINIDO"}</li>
-      </ul>
-    </div>
-  );
-};
-
-
 export default function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
@@ -41,10 +20,6 @@ export default function AuthPage() {
         </div>
         
         <AuthForm />
-        
-        {/* --- TEMPORARY DEBUG COMPONENT --- */}
-        <DebugEnvVars />
-        {/* ----------------------------------- */}
 
       </div>
     </div>
