@@ -1,18 +1,16 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ExternalLink, RefreshCw, CheckCircle, AlertCircle } from "lucide-react"
-import { useAuth } from "@/hooks/use-auth"
+import { ExternalLink, RefreshCw, AlertCircle } from "lucide-react"
 
 interface FirebaseSetupStatusProps {
   onRetry: () => void
 }
 
 export function FirebaseSetupStatus({ onRetry }: FirebaseSetupStatusProps) {
-  const { user } = useAuth()
   const [showDetails, setShowDetails] = useState(false)
 
   const indexLinks = [
@@ -85,10 +83,10 @@ export function FirebaseSetupStatus({ onRetry }: FirebaseSetupStatusProps) {
                   <strong>Pasos:</strong>
                 </p>
                 <ol className="text-sm text-blue-600 dark:text-blue-400 mt-2 space-y-1">
-                  <li>1. Haz clic en "Crear" para cada índice</li>
-                  <li>2. En Firebase Console, haz clic en "Create index"</li>
-                  <li>3. Espera hasta que el estado sea "Enabled"</li>
-                  <li>4. Haz clic en "Reintentar" abajo</li>
+                  <li>1. Haz clic en &quot;Crear&quot; para cada índice</li>
+                  <li>2. En Firebase Console, haz clic en &quot;Create index&quot;</li>
+                  <li>3. Espera hasta que el estado sea &quot;Enabled&quot;</li>
+                  <li>4. Haz clic en &quot;Reintentar&quot; abajo</li>
                 </ol>
               </div>
             </div>
