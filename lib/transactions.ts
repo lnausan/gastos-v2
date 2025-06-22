@@ -11,7 +11,7 @@ import {
   Timestamp 
 } from 'firebase/firestore'
 import { db } from './firebase'
-import { Transaction } from '@/types/transaction'
+import { Transaction, DollarValue } from '@/types/transaction'
 
 export const transactionsService = {
   // Agregar una nueva transacción
@@ -129,6 +129,80 @@ export const transactionsService = {
       })
       
       return { success: true, transactions }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  },
+
+  // Agregar o actualizar valor del dólar
+  async upsertDollarValue(dollarValue: Omit<DollarValue, "id" | "created_at" | "updated_at" | "user_id">, userId: string) {
+    try {
+      // Buscar si ya existe un valor para ese mes
+      const q = query(
+        collection(db, 'dollarValues'),
+        where('userId', '==', userId),
+        where('month', '==', dollarValue.month)
+      )
+      const querySnapshot = await getDocs(q)
+      
+      if (!querySnapshot.empty) {
+        // Actualizar existente
+        const docRef = doc(db, 'dollarValues', querySnapshot.docs[0].id)
+        await updateDoc(docRef, {
+          value: dollarValue.value,
+          updatedAt: Timestamp.now()
+        })
+        return { success: true, id: querySnapshot.docs[0].id }
+      } else {
+        // Crear nuevo
+        const docRef = await addDoc(collection(db, 'dollarValues'), {
+          month: dollarValue.month,
+          value: dollarValue.value,
+          userId,
+          createdAt: Timestamp.now(),
+          updatedAt: Timestamp.now()
+        })
+        return { success: true, id: docRef.id }
+      }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  },
+
+  // Obtener todos los valores del dólar de un usuario
+  async getDollarValues(userId: string) {
+    try {
+      const q = query(
+        collection(db, 'dollarValues'),
+        where('userId', '==', userId),
+        orderBy('month', 'desc')
+      )
+      const querySnapshot = await getDocs(q)
+      const dollarValues: DollarValue[] = []
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        dollarValues.push({
+          id: doc.id,
+          month: data.month,
+          value: data.value,
+          user_id: data.userId,
+          created_at: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          updated_at: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString()
+        } as DollarValue)
+      })
+      
+      return { success: true, dollarValues }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  },
+
+  // Eliminar valor del dólar
+  async deleteDollarValue(id: string) {
+    try {
+      await deleteDoc(doc(db, 'dollarValues', id))
+      return { success: true }
     } catch (error: any) {
       return { success: false, error: error.message }
     }

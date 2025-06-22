@@ -22,7 +22,9 @@ interface TransactionContextType {
   getMonthCategorySummary: (month: string, type: "ingreso" | "gasto") => { category: string; amount: number }[]
   isLoading: boolean
   isFirebaseEnabled: boolean
+  hasIndexErrors: boolean
   clearAllData: () => void
+  retryFirebaseConnection: () => void
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined)
@@ -32,6 +34,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const [dollarValues, setDollarValues] = useState<DollarValue[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isFirebaseEnabled, setIsFirebaseEnabled] = useState(false)
+  const [hasIndexErrors, setHasIndexErrors] = useState(false)
   const storageId = useId()
   const { user } = useAuth()
 
@@ -58,18 +61,48 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         if (isFirebaseEnabled && user) {
           // Cargar desde Firebase
           console.log('Cargando desde Firebase...')
-          const result = await transactionsService.getTransactions(user.uid)
-          if (result.success && result.transactions) {
-            setTransactions(result.transactions)
-            console.log('Transacciones cargadas desde Firebase:', result.transactions.length)
+          
+          // Cargar transacciones
+          const transactionsResult = await transactionsService.getTransactions(user.uid)
+          if (transactionsResult.success && transactionsResult.transactions) {
+            setTransactions(transactionsResult.transactions)
+            console.log('Transacciones cargadas desde Firebase:', transactionsResult.transactions.length)
           } else {
-            console.error('Error al cargar desde Firebase:', result.error)
-            // Si es un error de índice, mostrar mensaje específico
-            if (result.error && result.error.includes('index')) {
-              toast('Configurando base de datos... Por favor espera unos minutos y recarga la página.')
+            console.error('Error al cargar transacciones desde Firebase:', transactionsResult.error)
+            if (transactionsResult.error && transactionsResult.error.includes('index')) {
+              console.log('🔗 Enlace para crear índice de transacciones:', transactionsResult.error.match(/https:\/\/console\.firebase\.google\.com[^\s]*/)?.[0])
+              setHasIndexErrors(true)
             } else {
-              toast('Error al cargar datos desde Firebase')
+              toast('Error al cargar transacciones desde Firebase')
             }
+          }
+          
+          // Cargar valores del dólar
+          const dollarValuesResult = await transactionsService.getDollarValues(user.uid)
+          if (dollarValuesResult.success && dollarValuesResult.dollarValues) {
+            setDollarValues(dollarValuesResult.dollarValues)
+            console.log('Valores del dólar cargados desde Firebase:', dollarValuesResult.dollarValues.length)
+          } else {
+            console.error('Error al cargar valores del dólar desde Firebase:', dollarValuesResult.error)
+            if (dollarValuesResult.error && dollarValuesResult.error.includes('index')) {
+              const indexUrl = dollarValuesResult.error.match(/https:\/\/console\.firebase\.google\.com[^\s]*/)?.[0]
+              console.log('🔗 Enlace para crear índice de valores del dólar:', indexUrl)
+              setHasIndexErrors(true)
+              
+              // Mostrar enlace en consola para facilitar el acceso
+              if (indexUrl) {
+                console.log('📋 Para crear el índice manualmente, visita:')
+                console.log(indexUrl)
+              }
+            } else {
+              toast('Error al cargar valores del dólar desde Firebase')
+            }
+          }
+          
+          // Si ambos fallan por índices, cargar datos locales temporalmente
+          if ((!transactionsResult.success && transactionsResult.error?.includes('index')) && 
+              (!dollarValuesResult.success && dollarValuesResult.error?.includes('index'))) {
+            console.log('🔄 Cargando datos locales temporalmente mientras se crean los índices...')
             loadLocalData()
           }
         } else {
@@ -406,37 +439,105 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   // Actualizar el valor del dólar para un mes específico
   const updateDollarValue = async (month: string, value: number) => {
     try {
-      const existingIndex = dollarValues.findIndex(d => d.month === month)
-      let updatedDollarValues: DollarValue[]
+      if (isFirebaseEnabled && user) {
+        // Guardar en Firebase
+        const result = await transactionsService.upsertDollarValue({ month, value }, user.uid)
+        if (result.success) {
+          const existingIndex = dollarValues.findIndex(d => d.month === month)
+          let updatedDollarValues: DollarValue[]
 
-      if (existingIndex >= 0) {
-        // Actualizar existente
-        updatedDollarValues = dollarValues.map((d, index) => 
-          index === existingIndex 
-            ? { ...d, value, updated_at: new Date().toISOString() }
-            : d
-        )
-      } else {
-        // Crear nuevo
-        const newDollarValue: DollarValue = {
-          id: Date.now().toString(),
-          month,
-          value,
-          user_id: 'mock-user',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          if (existingIndex >= 0) {
+            // Actualizar existente
+            updatedDollarValues = dollarValues.map((d, index) => 
+              index === existingIndex 
+                ? { ...d, value, updated_at: new Date().toISOString() }
+                : d
+            )
+          } else {
+            // Crear nuevo
+            const newDollarValue: DollarValue = {
+              id: result.id!,
+              month,
+              value,
+              user_id: user.uid,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }
+            updatedDollarValues = [...dollarValues, newDollarValue]
+          }
+
+          setDollarValues(updatedDollarValues)
+          toast('Valor del dólar actualizado correctamente')
+        } else {
+          throw new Error(result.error)
         }
-        updatedDollarValues = [...dollarValues, newDollarValue]
-      }
+      } else {
+        // Guardar localmente
+        const existingIndex = dollarValues.findIndex(d => d.month === month)
+        let updatedDollarValues: DollarValue[]
 
-      setDollarValues(updatedDollarValues)
-      localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(updatedDollarValues))
-      
-      toast('Valor del dólar actualizado correctamente')
+        if (existingIndex >= 0) {
+          // Actualizar existente
+          updatedDollarValues = dollarValues.map((d, index) => 
+            index === existingIndex 
+              ? { ...d, value, updated_at: new Date().toISOString() }
+              : d
+          )
+        } else {
+          // Crear nuevo
+          const newDollarValue: DollarValue = {
+            id: Date.now().toString(),
+            month,
+            value,
+            user_id: 'mock-user',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }
+          updatedDollarValues = [...dollarValues, newDollarValue]
+        }
+
+        setDollarValues(updatedDollarValues)
+        localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(updatedDollarValues))
+        
+        toast('Valor del dólar actualizado correctamente')
+      }
     } catch (error) {
       console.error('Error al actualizar el valor del dólar:', error)
       toast('Error al actualizar el valor del dólar')
       throw error
+    }
+  }
+
+  const retryFirebaseConnection = async () => {
+    setIsLoading(true)
+    setHasIndexErrors(false)
+    
+    try {
+      if (isFirebaseEnabled && user) {
+        // Reintentar cargar datos desde Firebase
+        const transactionsResult = await transactionsService.getTransactions(user.uid)
+        const dollarValuesResult = await transactionsService.getDollarValues(user.uid)
+        
+        if (transactionsResult.success && dollarValuesResult.success) {
+          setTransactions(transactionsResult.transactions || [])
+          setDollarValues(dollarValuesResult.dollarValues || [])
+          toast('Conexión con Firebase restaurada correctamente')
+        } else {
+          // Si aún hay errores de índices, mantener el estado
+          if ((transactionsResult.error && transactionsResult.error.includes('index')) ||
+              (dollarValuesResult.error && dollarValuesResult.error.includes('index'))) {
+            setHasIndexErrors(true)
+            toast('Los índices aún están siendo creados. Intenta de nuevo en unos minutos.')
+          } else {
+            toast('Error al conectar con Firebase')
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error al reintentar conexión:', error)
+      toast('Error al reintentar conexión con Firebase')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -455,7 +556,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     getMonthCategorySummary,
     isLoading,
     isFirebaseEnabled,
+    hasIndexErrors,
     clearAllData,
+    retryFirebaseConnection,
   }
 
   return (

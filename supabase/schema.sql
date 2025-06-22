@@ -81,4 +81,35 @@ CREATE POLICY "Allow all authenticated users to delete dollar values"
 CREATE TRIGGER update_dollar_values_updated_at
     BEFORE UPDATE ON dollar_values
     FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column(); 
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Reglas de Firestore para Gastos V2
+-- Estas reglas deben ser copiadas a Firebase Console > Firestore Database > Rules
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Reglas para transacciones
+    match /transactions/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Reglas para valores del dólar
+    match /dollarValues/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+  }
+}
+
+-- Instrucciones para configurar Firestore:
+-- 1. Ve a Firebase Console > Firestore Database
+-- 2. Haz clic en "Rules"
+-- 3. Reemplaza las reglas existentes con las reglas de arriba
+-- 4. Haz clic en "Publish"
+--
+-- Estas reglas permiten:
+-- - Solo usuarios autenticados pueden acceder a los datos
+-- - Cada usuario solo puede ver y modificar sus propios datos
+-- - Los datos están protegidos por el campo userId 

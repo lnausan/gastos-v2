@@ -15,6 +15,7 @@ import TransactionList from "@/components/transaction-list"
 import MonthSelector from "@/components/month-selector"
 import DollarValue from "@/components/dollar-value"
 import CategorySummary from "@/components/category-summary"
+import { FirebaseSetupStatus } from "@/components/firebase-setup-status"
 import { useTransactions } from "@/context/transaction-context"
 import DashboardSkeleton from '@/components/dashboard-skeleton'
 
@@ -31,7 +32,7 @@ function BarChartWithData({ data }: { data: any }) {
 }
 
 export default function DashboardPage() {
-  const { getLastSixMonthsSummary, getMonthSummary, getDollarValue, isLoading, transactions } = useTransactions()
+  const { getLastSixMonthsSummary, getMonthSummary, getDollarValue, isLoading, transactions, hasIndexErrors, retryFirebaseConnection } = useTransactions()
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"))
   const [isFormOpen, setIsFormOpen] = useState(false)
 
@@ -54,6 +55,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* Mostrar estado de configuración de Firebase si hay errores de índices */}
+      {hasIndexErrors && (
+        <FirebaseSetupStatus onRetry={retryFirebaseConnection} />
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>

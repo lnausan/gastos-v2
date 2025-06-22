@@ -9,8 +9,72 @@ Una aplicación web para gestionar ingresos y gastos personales, construida con 
 - 📈 Gráficos y estadísticas
 - 📱 Diseño responsive
 - 🌙 Modo oscuro/claro
-- 🔐 Autenticación con Firebase
+- 🔐 **Autenticación real con Firebase** (Email/Password)
 - ☁️ Sincronización en la nube
+- 🛡️ Rutas protegidas con AuthGuard
+
+## 🔐 Autenticación
+
+La aplicación ahora requiere **credenciales reales** para acceder. Los usuarios pueden:
+
+- **Crear una cuenta**: Registrarse con email y contraseña
+- **Iniciar sesión**: Usar credenciales existentes
+- **Cerrar sesión**: Salir de la aplicación de forma segura
+- **Protección de rutas**: Todas las páginas están protegidas y redirigen a login si no hay sesión activa
+
+## 💾 Guardado de Datos
+
+La aplicación guarda automáticamente todos los datos en **Firebase Firestore**:
+
+### 📊 Datos que se guardan:
+- **Transacciones**: Ingresos y gastos con fecha, categoría, descripción y monto
+- **Valores del dólar**: Cotización mensual para conversiones
+- **Datos del usuario**: Información de autenticación y preferencias
+
+### 🔄 Sincronización:
+- **Tiempo real**: Los datos se sincronizan automáticamente con Firebase
+- **Multi-dispositivo**: Accede a tus datos desde cualquier dispositivo
+- **Respaldo automático**: Tus datos están seguros en la nube
+- **Modo offline**: Los datos se guardan localmente si no hay conexión
+
+### 🛡️ Seguridad:
+- **Datos privados**: Cada usuario solo ve sus propios datos
+- **Autenticación requerida**: Solo usuarios logueados pueden acceder
+- **Reglas de Firestore**: Protección a nivel de base de datos
+
+## 🔧 Solución de Problemas
+
+### Error de Índices de Firestore
+
+Si ves este error:
+```
+"The query requires an index. You can create it here: https://console.firebase.google.com/..."
+```
+
+**Solución rápida:**
+1. Ejecuta el script de configuración de índices:
+   ```bash
+   node scripts/setup-indexes.js
+   ```
+2. Haz clic en los enlaces que aparecen en la consola
+3. En Firebase Console, haz clic en "Create index"
+4. Espera 2-3 minutos a que se creen los índices
+5. Recarga la aplicación
+
+**Solución manual:**
+1. Ve a [Firebase Console](https://console.firebase.google.com/)
+2. Selecciona tu proyecto
+3. Ve a Firestore Database > Indexes
+4. Haz clic en "Create index"
+5. Crea estos índices:
+
+**Para transacciones:**
+- Collection: `transactions`
+- Fields: `userId` (Ascending) + `date` (Descending)
+
+**Para valores del dólar:**
+- Collection: `dollarValues`
+- Fields: `userId` (Ascending) + `month` (Descending)
 
 ## 🛠️ Tecnologías
 
@@ -47,7 +111,33 @@ Una aplicación web para gestionar ingresos y gastos personales, construida con 
 4. Elige la ubicación más cercana
 5. Haz clic en "Done"
 
-#### 1.4 Obtener credenciales
+#### 1.4 Configurar Reglas de Firestore
+
+1. En Firestore Database, ve a la pestaña "Rules"
+2. Reemplaza las reglas existentes con las reglas del archivo `firestore.rules`
+3. Haz clic en "Publish"
+
+**Reglas de Firestore (firestore.rules):**
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Reglas para transacciones
+    match /transactions/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Reglas para valores del dólar
+    match /dollarValues/{document} {
+      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+  }
+}
+```
+
+#### 1.5 Obtener credenciales
 
 1. Ve a la configuración del proyecto (ícono de engranaje)
 2. En "General", haz clic en "Add app"
@@ -97,227 +187,4 @@ git push -u origin main
 
 Asegúrate de que tu `.gitignore` incluya:
 
-```gitignore
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Next.js
-.next/
-out/
-
-# Production
-build/
-
-# Misc
-.DS_Store
-*.pem
-
-# Debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Local env files
-.env*.local
-
-# Vercel
-.vercel
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
 ```
-
-### 4. Configurar Vercel
-
-#### 4.1 Conectar con Vercel
-
-1. Ve a [Vercel](https://vercel.com/)
-2. Crea una cuenta o inicia sesión
-3. Haz clic en "New Project"
-4. Importa tu repositorio de GitHub
-5. Configura las variables de entorno
-
-#### 4.2 Variables de Entorno en Vercel
-
-En la configuración del proyecto en Vercel:
-
-1. Ve a "Settings" > "Environment Variables"
-2. Agrega las mismas variables que tienes en `.env.local`:
-   - `NEXT_PUBLIC_FIREBASE_API_KEY`
-   - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
-   - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
-   - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
-   - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-   - `NEXT_PUBLIC_FIREBASE_APP_ID`
-
-#### 4.3 Configurar dominio personalizado (opcional)
-
-1. En Vercel, ve a "Settings" > "Domains"
-2. Agrega tu dominio personalizado
-3. Sigue las instrucciones para configurar DNS
-
-### 5. Configurar Reglas de Firestore
-
-En Firebase Console, ve a Firestore Database > Rules y actualiza las reglas:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    // Permitir acceso solo a usuarios autenticados
-    match /transactions/{document} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-    }
-    
-    // Reglas para valores del dólar
-    match /dollarValues/{document} {
-      allow read, write: if request.auth != null && request.auth.uid == resource.data.userId;
-      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
-    }
-  }
-}
-```
-
-### 6. Flujo de Desarrollo
-
-#### 6.1 Desarrollo local
-
-```bash
-# Instalar dependencias
-npm install
-
-# Ejecutar en modo desarrollo
-npm run dev
-
-# Abrir http://localhost:3000
-```
-
-#### 6.2 Deploy automático
-
-Cada vez que hagas push a la rama `main`, Vercel automáticamente:
-
-1. Detecta los cambios
-2. Ejecuta el build
-3. Despliega la nueva versión
-4. Actualiza tu dominio
-
-#### 6.3 Flujo de trabajo recomendado
-
-```bash
-# Crear nueva rama para feature
-git checkout -b feature/nueva-funcionalidad
-
-# Hacer cambios
-# ... código ...
-
-# Commit cambios
-git add .
-git commit -m "feat: agregar nueva funcionalidad"
-
-# Push a GitHub
-git push origin feature/nueva-funcionalidad
-
-# Crear Pull Request en GitHub
-# Revisar y mergear a main
-# Vercel automáticamente hace deploy
-```
-
-### 7. Monitoreo y Analytics
-
-#### 7.1 Firebase Analytics (opcional)
-
-1. En Firebase Console, ve a "Analytics"
-2. Sigue las instrucciones para habilitar Google Analytics
-3. Agrega el código de seguimiento a tu aplicación
-
-#### 7.2 Vercel Analytics
-
-1. En Vercel, ve a "Settings" > "Analytics"
-2. Habilita Vercel Analytics
-3. Agrega el script de seguimiento
-
-### 8. Seguridad
-
-#### 8.1 Variables de entorno
-
-- Nunca commits credenciales en Git
-- Usa siempre variables de entorno
-- Rota las claves regularmente
-
-#### 8.2 Firestore Rules
-
-- Revisa y actualiza las reglas de seguridad
-- Prueba las reglas antes de deployar
-- Usa el simulador de reglas de Firebase
-
-### 9. Troubleshooting
-
-#### 9.1 Errores comunes
-
-**Error: "Firebase not initialized"**
-- Verifica que las variables de entorno estén configuradas
-- Asegúrate de que el archivo `lib/firebase.ts` esté correcto
-
-**Error: "Permission denied"**
-- Revisa las reglas de Firestore
-- Verifica que el usuario esté autenticado
-
-**Error: "Build failed"**
-- Revisa los logs de Vercel
-- Verifica que todas las dependencias estén instaladas
-
-#### 9.2 Logs y debugging
-
-```bash
-# Ver logs de Vercel
-vercel logs
-
-# Ver logs de Firebase
-# Ve a Firebase Console > Functions > Logs
-```
-
-## 📝 Scripts Disponibles
-
-```bash
-# Desarrollo
-npm run dev          # Ejecutar servidor de desarrollo
-npm run build        # Construir para producción
-npm run start        # Ejecutar servidor de producción
-npm run lint         # Ejecutar linter
-npm run type-check   # Verificar tipos TypeScript
-```
-
-## 🤝 Contribuir
-
-1. Fork el proyecto
-2. Crea una rama para tu feature (`git checkout -b feature/AmazingFeature`)
-3. Commit tus cambios (`git commit -m 'Add some AmazingFeature'`)
-4. Push a la rama (`git push origin feature/AmazingFeature`)
-5. Abre un Pull Request
-
-## 📄 Licencia
-
-Este proyecto está bajo la Licencia MIT - ver el archivo [LICENSE](LICENSE) para detalles.
-
-## 🆘 Soporte
-
-Si tienes problemas:
-
-1. Revisa la documentación de [Firebase](https://firebase.google.com/docs)
-2. Consulta la documentación de [Vercel](https://vercel.com/docs)
-3. Abre un issue en GitHub
-
----
-
-¡Disfruta gestionando tus gastos! 💰 
