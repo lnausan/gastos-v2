@@ -27,16 +27,20 @@ const ELEGANT_DARK_COLORS = [
 
 // Categorías locales para desarrollo sin Supabase
 const LOCAL_CATEGORIES = [
-  { id: "1", name: "Alimentación", color: "#1e3a8a" },
-  { id: "2", name: "Transporte", color: "#065f46" },
-  { id: "3", name: "Entretenimiento", color: "#7f1d1d" },
-  { id: "4", name: "Salud", color: "#7c2d12" },
-  { id: "5", name: "Educación", color: "#78350f" },
-  { id: "6", name: "Vivienda", color: "#4b006e" },
-  { id: "7", name: "Servicios", color: "#334155" },
-  { id: "8", name: "Ropa", color: "#0f172a" },
-  { id: "9", name: "Tecnología", color: "#3f3f46" },
-  { id: "10", name: "Otros", color: "#27272a" },
+  { id: "usdt", name: "USDT", color: "#1e3a8a" },
+  { id: "finanzas", name: "Finanzas", color: "#065f46" },
+  { id: "sueldo", name: "Sueldo", color: "#7f1d1d" },
+  { id: "ingreso", name: "Ingreso", color: "#7c2d12" },
+  { id: "alimentacion", name: "Alimentación", color: "#78350f" },
+  { id: "transporte", name: "Transporte", color: "#4b006e" },
+  { id: "entretenimiento", name: "Entretenimiento", color: "#334155" },
+  { id: "salud", name: "Salud", color: "#0f172a" },
+  { id: "educacion", name: "Educación", color: "#3f3f46" },
+  { id: "vivienda", name: "Vivienda", color: "#27272a" },
+  { id: "servicios", name: "Servicios", color: "#1e3a8a" },
+  { id: "ropa", name: "Ropa", color: "#065f46" },
+  { id: "tecnologia", name: "Tecnología", color: "#7f1d1d" },
+  { id: "otros", name: "Otros", color: "#7c2d12" },
 ]
 
 export default function CategorySummary({ month, type }: CategorySummaryProps) {

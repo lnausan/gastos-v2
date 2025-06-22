@@ -127,7 +127,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           id: '1',
           amount: 50000,
           type: 'ingreso',
-          category_id: 'salario',
+          category_id: 'sueldo',
           date: '2024-01-15',
           description: 'Salario enero',
           created_at: '2024-01-15T10:00:00Z',
@@ -160,7 +160,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           id: '4',
           amount: 60000,
           type: 'ingreso',
-          category_id: 'salario',
+          category_id: 'sueldo',
           date: '2024-02-15',
           description: 'Salario febrero',
           created_at: '2024-02-15T10:00:00Z',
@@ -176,6 +176,28 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           description: 'Alquiler',
           created_at: '2024-02-01T12:00:00Z',
           updated_at: '2024-02-01T12:00:00Z',
+          user_id: 'mock-user'
+        },
+        {
+          id: '6',
+          amount: 1000,
+          type: 'ingreso',
+          category_id: 'usdt',
+          date: '2024-02-10',
+          description: 'Venta USDT',
+          created_at: '2024-02-10T14:20:00Z',
+          updated_at: '2024-02-10T14:20:00Z',
+          user_id: 'mock-user'
+        },
+        {
+          id: '7',
+          amount: 5000,
+          type: 'ingreso',
+          category_id: 'finanzas',
+          date: '2024-02-20',
+          description: 'Inversión',
+          created_at: '2024-02-20T16:45:00Z',
+          updated_at: '2024-02-20T16:45:00Z',
           user_id: 'mock-user'
         }
       ]

@@ -43,16 +43,20 @@ interface TransactionFormProps {
 
 // Categorías locales para desarrollo sin Supabase
 const LOCAL_CATEGORIES = [
-  { id: "1", name: "Alimentación" },
-  { id: "2", name: "Transporte" },
-  { id: "3", name: "Entretenimiento" },
-  { id: "4", name: "Salud" },
-  { id: "5", name: "Educación" },
-  { id: "6", name: "Vivienda" },
-  { id: "7", name: "Servicios" },
-  { id: "8", name: "Ropa" },
-  { id: "9", name: "Tecnología" },
-  { id: "10", name: "Otros" },
+  { id: "usdt", name: "USDT" },
+  { id: "finanzas", name: "Finanzas" },
+  { id: "sueldo", name: "Sueldo" },
+  { id: "ingreso", name: "Ingreso" },
+  { id: "alimentacion", name: "Alimentación" },
+  { id: "transporte", name: "Transporte" },
+  { id: "entretenimiento", name: "Entretenimiento" },
+  { id: "salud", name: "Salud" },
+  { id: "educacion", name: "Educación" },
+  { id: "vivienda", name: "Vivienda" },
+  { id: "servicios", name: "Servicios" },
+  { id: "ropa", name: "Ropa" },
+  { id: "tecnologia", name: "Tecnología" },
+  { id: "otros", name: "Otros" },
 ]
 
 export default function TransactionForm({ transaction, onSuccess }: TransactionFormProps) {
@@ -209,9 +213,9 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
                         className={cn("pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
                       >
                         {field.value ? (
-                          format(field.value, "MMMM yyyy", { locale: es })
+                          format(field.value, "dd 'de' MMMM, yyyy", { locale: es })
                         ) : (
-                          <span>Selecciona un mes</span>
+                          <span>Selecciona una fecha</span>
                         )}
                         <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                       </Button>
