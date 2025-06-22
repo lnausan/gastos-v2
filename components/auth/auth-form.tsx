@@ -41,12 +41,12 @@ export function AuthForm() {
   }
 
   return (
-    <div className="w-full">
-      <div className="text-center mb-6">
-        <h3 className="text-xl font-semibold text-white">
+    <div className="w-full space-y-6">
+      <div className="text-center">
+        <h3 className="text-xl font-semibold">
           {isSignUp ? "Crear cuenta" : "Iniciar sesión"}
         </h3>
-        <p className="text-sm text-white/70 mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           {isSignUp 
             ? "Crea una nueva cuenta para comenzar a gestionar tus gastos"
             : "Ingresa tus credenciales para acceder a tu cuenta"
@@ -56,7 +56,7 @@ export function AuthForm() {
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="email" className="text-white">Email</Label>
+          <Label htmlFor="email" className="font-medium">Email</Label>
           <Input
             id="email"
             type="email"
@@ -64,11 +64,10 @@ export function AuthForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/30 focus:border-white/50"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="password" className="text-white">Contraseña</Label>
+          <Label htmlFor="password" className="font-medium">Contraseña</Label>
           <Input
             id="password"
             type="password"
@@ -76,23 +75,22 @@ export function AuthForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
-            className="bg-white/20 border-white/30 text-white placeholder:text-white/50 focus:bg-white/30 focus:border-white/50"
           />
         </div>
         <Button 
           type="submit" 
-          className="w-full bg-white/20 hover:bg-white/30 text-white border border-white/30 hover:border-white/50" 
+          className="w-full" 
           disabled={isLoading}
         >
           {isLoading ? "Cargando..." : (isSignUp ? "Crear cuenta" : "Iniciar sesión")}
         </Button>
       </form>
       
-      <div className="mt-6 text-center">
+      <div className="text-center">
         <Button
           variant="link"
           onClick={() => setIsSignUp(!isSignUp)}
-          className="text-sm text-white/80 hover:text-white"
+          className="text-sm"
         >
           {isSignUp 
             ? "¿Ya tienes cuenta? Inicia sesión"
