@@ -69,7 +69,11 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-4">
           <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
-          <MonthCloser currentMonth={selectedMonth} onMonthChange={setSelectedMonth} />
+          <MonthCloser 
+            currentMonth={selectedMonth} 
+            onMonthChange={setSelectedMonth} 
+            onOpenTransactionForm={() => setIsFormOpen(true)}
+          />
 
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>

@@ -18,9 +18,10 @@ import { toast } from "sonner"
 interface MonthCloserProps {
   currentMonth: string
   onMonthChange?: (newMonth: string) => void
+  onOpenTransactionForm?: () => void
 }
 
-export default function MonthCloser({ currentMonth, onMonthChange }: MonthCloserProps) {
+export default function MonthCloser({ currentMonth, onMonthChange, onOpenTransactionForm }: MonthCloserProps) {
   const { closeMonth, loadNextMonthTransactions, getMonthSummary } = useTransactions()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -54,6 +55,13 @@ export default function MonthCloser({ currentMonth, onMonthChange }: MonthCloser
         
         setIsOpen(false)
         toast.success('Mes cerrado y próximo mes preparado exitosamente')
+
+        // Abrir el formulario de transacciones después de un pequeño delay
+        if (onOpenTransactionForm) {
+          setTimeout(() => {
+            onOpenTransactionForm()
+          }, 1000) // 1 segundo de delay
+        }
       } else {
         toast.error(result.message)
       }
