@@ -24,7 +24,8 @@ export default function HistorialPage() {
     dollarValues, 
     getMonthTransactions, 
     getMonthSummary,
-    getClosedMonths
+    getClosedMonths,
+    cleanupDuplicateClosedMonths
   } = useTransactions()
   const summaries = getAllMonthsSummary()
   const closedMonths = getClosedMonths()
@@ -71,6 +72,19 @@ export default function HistorialPage() {
     }
   }
 
+  const handleCleanupDuplicates = () => {
+    const beforeCount = closedMonths.length
+    cleanupDuplicateClosedMonths()
+    const afterCount = getClosedMonths().length
+    const removedCount = beforeCount - afterCount
+    
+    if (removedCount > 0) {
+      toast.success(`Se eliminaron ${removedCount} meses duplicados`)
+    } else {
+      toast.info('No se encontraron meses duplicados')
+    }
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -88,9 +102,20 @@ export default function HistorialPage() {
       {/* Sección de meses cerrados */}
       {closedMonths.length > 0 && (
         <div className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Archive className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-xl font-semibold">Meses Cerrados</h2>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Archive className="h-5 w-5 text-muted-foreground" />
+              <h2 className="text-xl font-semibold">Meses Cerrados</h2>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleCleanupDuplicates}
+              className="flex items-center gap-2"
+            >
+              <Archive className="h-4 w-4" />
+              Limpiar Duplicados
+            </Button>
           </div>
           
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

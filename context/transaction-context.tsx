@@ -24,6 +24,7 @@ interface TransactionContextType {
   closeMonth: (month: string, carryOverAmount?: number) => Promise<{ success: boolean; message: string; nextMonth: string }>
   loadNextMonthTransactions: (nextMonth: string, carryOverAmount?: number) => Promise<void>
   getClosedMonths: () => ClosedMonth[]
+  cleanupDuplicateClosedMonths: () => void
   isLoading: boolean
   isFirebaseEnabled: boolean
   hasIndexErrors: boolean
@@ -86,7 +87,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           }
 
           if (closedMonthsResult.success) {
-            setClosedMonths(closedMonthsResult.closedMonths || [])
+            const cleanedClosedMonths = cleanDuplicateClosedMonths(closedMonthsResult.closedMonths || [])
+            setClosedMonths(cleanedClosedMonths)
           } else {
             console.error('Error al cargar meses cerrados:', closedMonthsResult.error)
           }
@@ -125,7 +127,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         const storedClosedMonths = localStorage.getItem(`closed-months-${storageId}`)
         if (storedClosedMonths) {
           const parsedClosedMonths = JSON.parse(storedClosedMonths)
-          setClosedMonths(parsedClosedMonths)
+          const cleanedClosedMonths = cleanDuplicateClosedMonths(parsedClosedMonths)
+          setClosedMonths(cleanedClosedMonths)
         }
       } catch (error) {
         console.error('Error al cargar datos locales:', error)
@@ -138,9 +141,23 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const clearAllData = () => {
     setTransactions([])
     setDollarValues([])
+    setClosedMonths([])
     localStorage.removeItem(`transactions-${storageId}`)
     localStorage.removeItem(`dollar-values-${storageId}`)
+    localStorage.removeItem(`closed-months-${storageId}`)
     toast.success("Sesión cerrada y datos limpiados.")
+  }
+
+  // Función para limpiar meses cerrados duplicados
+  const cleanDuplicateClosedMonths = (months: ClosedMonth[]): ClosedMonth[] => {
+    const seen = new Set<string>()
+    return months.filter(month => {
+      if (seen.has(month.month)) {
+        return false
+      }
+      seen.add(month.month)
+      return true
+    })
   }
 
   // Agregar una nueva transacción
@@ -445,6 +462,16 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   // Cerrar el mes actual y generar resumen
   const closeMonth = async (month: string, carryOverAmount?: number): Promise<{ success: boolean; message: string; nextMonth: string }> => {
     try {
+      // Verificar si el mes ya está cerrado
+      const isAlreadyClosed = closedMonths.some(cm => cm.month === month)
+      if (isAlreadyClosed) {
+        return {
+          success: false,
+          message: `El mes ${month} ya está cerrado`,
+          nextMonth: ''
+        }
+      }
+
       const monthSummary = getMonthSummary(month)
       const monthTransactions = getMonthTransactions(month)
       
@@ -515,8 +542,13 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           user_id: 'mock-user',
           carry_over_amount: carryOverAmount
         }
-        setClosedMonths(prev => [newClosedMonth, ...prev])
-        localStorage.setItem(`closed-months-${storageId}`, JSON.stringify([newClosedMonth, ...closedMonths]))
+        
+        // Actualizar estado y localStorage con el nuevo estado
+        setClosedMonths(prev => {
+          const updatedClosedMonths = [newClosedMonth, ...prev]
+          localStorage.setItem(`closed-months-${storageId}`, JSON.stringify(updatedClosedMonths))
+          return updatedClosedMonths
+        })
       }
 
       // Si se especifica un monto para llevar al próximo mes, crear una transacción de ingreso inicial
@@ -586,6 +618,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     return closedMonths
   }
 
+  const cleanupDuplicateClosedMonths = () => {
+    setClosedMonths(cleanDuplicateClosedMonths(closedMonths))
+  }
+
   const value = {
     transactions,
     dollarValues,
@@ -603,6 +639,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     closeMonth,
     loadNextMonthTransactions,
     getClosedMonths,
+    cleanupDuplicateClosedMonths,
     isLoading,
     isFirebaseEnabled,
     hasIndexErrors,

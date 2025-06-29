@@ -22,13 +22,16 @@ interface MonthCloserProps {
 }
 
 export default function MonthCloser({ currentMonth, onMonthChange, onOpenTransactionForm }: MonthCloserProps) {
-  const { closeMonth, loadNextMonthTransactions, getMonthSummary } = useTransactions()
+  const { closeMonth, loadNextMonthTransactions, getMonthSummary, getClosedMonths } = useTransactions()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [carryOverBalance, setCarryOverBalance] = useState(false)
   const [carryOverAmount, setCarryOverAmount] = useState(0)
 
   const currentSummary = getMonthSummary(currentMonth)
+  const closedMonths = getClosedMonths()
+  const isMonthAlreadyClosed = closedMonths.some(cm => cm.month === currentMonth)
+  
   const [year, monthNum] = currentMonth.split('-')
   const nextMonthDate = new Date(parseInt(year), parseInt(monthNum) - 1 + 1, 1)
   const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`
@@ -84,9 +87,13 @@ export default function MonthCloser({ currentMonth, onMonthChange, onOpenTransac
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
+        <Button 
+          variant="outline" 
+          className="gap-2" 
+          disabled={isMonthAlreadyClosed}
+        >
           <CheckCircle className="h-4 w-4" />
-          Cerrar Mes
+          {isMonthAlreadyClosed ? 'Mes Ya Cerrado' : 'Cerrar Mes'}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
@@ -95,6 +102,21 @@ export default function MonthCloser({ currentMonth, onMonthChange, onOpenTransac
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Advertencia si el mes ya está cerrado */}
+          {isMonthAlreadyClosed && (
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                <span className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                  Este mes ya está cerrado
+                </span>
+              </div>
+              <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
+                No puedes cerrar un mes que ya ha sido cerrado anteriormente.
+              </p>
+            </div>
+          )}
+
           {/* Resumen del mes actual */}
           <Card>
             <CardHeader>
@@ -183,7 +205,10 @@ export default function MonthCloser({ currentMonth, onMonthChange, onOpenTransac
             <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading}>
               Cancelar
             </Button>
-            <Button onClick={handleCloseMonth} disabled={isLoading}>
+            <Button 
+              onClick={handleCloseMonth} 
+              disabled={isLoading || isMonthAlreadyClosed}
+            >
               {isLoading ? 'Cerrando...' : 'Cerrar Mes y Continuar'}
             </Button>
           </div>
