@@ -204,7 +204,7 @@ export default function DashboardPage() {
               </p>
             </div>
             <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
-              Puedes agregar transacciones planificadas para este mes. El botón "Cerrar Mes" aparecerá cuando llegue el momento.
+              Puedes agregar transacciones planificadas para este mes. El botón &ldquo;Cerrar Mes&rdquo; aparecerá cuando llegue el momento.
             </p>
           </CardContent>
         </Card>
