@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { format, parse } from "date-fns"
 import { es } from "date-fns/locale"
-import { Edit, Trash2 } from "lucide-react"
+import { Edit, Trash2, Archive } from "lucide-react"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -53,7 +53,7 @@ export default function TransactionList({ month, simplified = false }: Transacti
   const [isPending, startTransition] = useTransition()
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
 
-  const transactions = getMonthTransactions(month)
+  const transactions = getMonthTransactions(month, true)
 
   // Ordenar transacciones por fecha (más recientes primero)
   const sortedTransactions = [...transactions].sort((a, b) => 
@@ -102,10 +102,13 @@ export default function TransactionList({ month, simplified = false }: Transacti
           </TableHeader>
           <TableBody>
             {sortedTransactions.map((transaction) => (
-              <TableRow key={transaction.id}>
+              <TableRow key={transaction.id} className={transaction.archived ? "opacity-60 bg-muted/30" : ""}>
                 <TableCell className={transaction.type === "ingreso" ? "text-green-500" : "text-red-500"}>
-                  {transaction.type === "ingreso" ? "+" : "-"}
-                  {transaction.amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className="flex items-center gap-2">
+                    {transaction.archived && <Archive className="h-3 w-3 text-muted-foreground" />}
+                    {transaction.type === "ingreso" ? "+" : "-"}
+                    {transaction.amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
                 </TableCell>
                 {!simplified && (
                   <TableCell>

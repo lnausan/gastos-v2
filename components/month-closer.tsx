@@ -36,21 +36,20 @@ export default function MonthCloser({ currentMonth, onMonthChange, onOpenTransac
   const handleCloseMonth = async () => {
     setIsLoading(true)
     try {
-      const result = await closeMonth(currentMonth)
+      // Determinar el monto a llevar al próximo mes
+      let amountToCarry = 0
+      if (carryOverBalance && currentSummary.balance > 0) {
+        amountToCarry = carryOverAmount > 0 ? carryOverAmount : currentSummary.balance
+      } else if (carryOverAmount > 0) {
+        amountToCarry = carryOverAmount
+      }
+
+      const result = await closeMonth(currentMonth, amountToCarry)
       
       if (result.success) {
-        // Si se quiere llevar el balance al próximo mes
-        if (carryOverBalance && currentSummary.balance > 0) {
-          await loadNextMonthTransactions(nextMonth, currentSummary.balance)
-        } else if (carryOverAmount > 0) {
-          await loadNextMonthTransactions(nextMonth, carryOverAmount)
-        } else {
-          await loadNextMonthTransactions(nextMonth)
-        }
-
         // Cambiar al próximo mes
         if (onMonthChange) {
-          onMonthChange(nextMonth)
+          onMonthChange(result.nextMonth)
         }
         
         setIsOpen(false)

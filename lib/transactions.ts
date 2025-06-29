@@ -8,10 +8,11 @@ import {
   where, 
   orderBy, 
   getDocs,
-  Timestamp 
+  Timestamp,
+  writeBatch
 } from 'firebase/firestore'
 import { db } from './firebase'
-import { Transaction, DollarValue } from '@/types/transaction'
+import { Transaction, DollarValue, ClosedMonth } from '@/types/transaction'
 
 export const transactionsService = {
   // Agregar una nueva transacción
@@ -23,7 +24,8 @@ export const transactionsService = {
         date: Timestamp.fromDate(new Date(date)),
         userId,
         createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now()
+        updatedAt: Timestamp.now(),
+        archived: false
       })
       return { success: true, id: docRef.id }
     } catch (error: any) {
@@ -85,6 +87,7 @@ export const transactionsService = {
           id: doc.id,
           ...data,
           date,
+          archived: data.archived || false
         } as Transaction)
       })
       
@@ -125,10 +128,90 @@ export const transactionsService = {
           id: doc.id,
           ...data,
           date,
+          archived: data.archived || false
         } as Transaction)
       })
       
       return { success: true, transactions }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  },
+
+  // Archivar transacciones de un mes específico
+  async archiveMonthTransactions(userId: string, month: string) {
+    try {
+      const startDate = new Date(month + '-01')
+      const endDate = new Date(new Date(startDate).setMonth(startDate.getMonth() + 1) - 1)
+      
+      const q = query(
+        collection(db, 'transactions'),
+        where('userId', '==', userId),
+        where('date', '>=', Timestamp.fromDate(startDate)),
+        where('date', '<=', Timestamp.fromDate(endDate)),
+        where('archived', '==', false)
+      )
+      
+      const querySnapshot = await getDocs(q)
+      const batch = writeBatch(db)
+      
+      querySnapshot.forEach((docSnapshot) => {
+        const docRef = doc(db, 'transactions', docSnapshot.id)
+        batch.update(docRef, { 
+          archived: true, 
+          updatedAt: Timestamp.now() 
+        })
+      })
+      
+      await batch.commit()
+      return { success: true, archivedCount: querySnapshot.size }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  },
+
+  // Guardar mes cerrado
+  async saveClosedMonth(closedMonth: Omit<ClosedMonth, "id" | "user_id">, userId: string) {
+    try {
+      const docRef = await addDoc(collection(db, 'closedMonths'), {
+        ...closedMonth,
+        userId,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      })
+      return { success: true, id: docRef.id }
+    } catch (error: any) {
+      return { success: false, error: error.message }
+    }
+  },
+
+  // Obtener meses cerrados
+  async getClosedMonths(userId: string) {
+    try {
+      const q = query(
+        collection(db, 'closedMonths'),
+        where('userId', '==', userId),
+        orderBy('month', 'desc')
+      )
+      const querySnapshot = await getDocs(q)
+      const closedMonths: ClosedMonth[] = []
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data()
+        closedMonths.push({
+          id: doc.id,
+          month: data.month,
+          income: data.income,
+          expense: data.expense,
+          balance: data.balance,
+          transaction_count: data.transaction_count,
+          closed_at: data.closedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          user_id: data.userId,
+          carry_over_amount: data.carry_over_amount
+        } as ClosedMonth)
+      })
+      
+      return { success: true, closedMonths }
     } catch (error: any) {
       return { success: false, error: error.message }
     }

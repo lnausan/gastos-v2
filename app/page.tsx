@@ -1,13 +1,15 @@
 "use client"
 
 import { useState, Suspense } from "react"
-import { format } from "date-fns"
-import { Plus, ArrowUpIcon, ArrowDownIcon, DollarSign } from "lucide-react"
+import { format, parse, isAfter, startOfMonth } from "date-fns"
+import { es } from "date-fns/locale"
+import { Plus, ArrowUpIcon, ArrowDownIcon, DollarSign, Calendar } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 
 import TransactionForm from "@/components/transaction-form"
 import BarChart from "@/components/charts/bar-chart"
@@ -40,6 +42,9 @@ export default function DashboardPage() {
   const summary = getMonthSummary(selectedMonth)
   const dollarValue = getDollarValue(selectedMonth)
 
+  // Verificar si el mes seleccionado es futuro
+  const isFutureMonth = isAfter(startOfMonth(parse(selectedMonth, "yyyy-MM", new Date())), startOfMonth(new Date()))
+
   if (isLoading && transactions.length === 0) {
     return (
       <div className="space-y-8">
@@ -68,12 +73,24 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-4">
-          <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
-          <MonthCloser 
-            currentMonth={selectedMonth} 
-            onMonthChange={setSelectedMonth} 
-            onOpenTransactionForm={() => setIsFormOpen(true)}
-          />
+          <div className="flex items-center gap-2">
+            <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
+            {isFutureMonth && (
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <Calendar className="h-3 w-3" />
+                Mes Futuro
+              </Badge>
+            )}
+          </div>
+          
+          {/* Solo mostrar el botón de cerrar mes si no es un mes futuro */}
+          {!isFutureMonth && (
+            <MonthCloser 
+              currentMonth={selectedMonth} 
+              onMonthChange={setSelectedMonth} 
+              onOpenTransactionForm={() => setIsFormOpen(true)}
+            />
+          )}
 
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>
@@ -175,6 +192,23 @@ export default function DashboardPage() {
           </Card>
         </div>
       </div>
+
+      {/* Mensaje informativo para meses futuros */}
+      {isFutureMonth && (
+        <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+              <Calendar className="h-4 w-4" />
+              <p className="text-sm font-medium">
+                Estás viendo {format(parse(selectedMonth, "yyyy-MM", new Date()), "MMMM yyyy", { locale: es })}
+              </p>
+            </div>
+            <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
+              Puedes agregar transacciones planificadas para este mes. El botón "Cerrar Mes" aparecerá cuando llegue el momento.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       <Tabs defaultValue="transactions" className="space-y-4">
         <TabsList>

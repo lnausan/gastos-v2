@@ -4,7 +4,7 @@ import { useState, useId, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import { format } from "date-fns"
+import { format, addMonths } from "date-fns"
 import { es } from "date-fns/locale"
 import { CalendarIcon } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
@@ -226,7 +226,7 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
                       mode="single"
                       selected={field.value}
                       onSelect={field.onChange}
-                      disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+                      disabled={(date) => date > addMonths(new Date(), 12) || date < new Date("1900-01-01")}
                       locale={es}
                       initialFocus
                     />

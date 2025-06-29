@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useState, useId } from "react"
-import type { Transaction, MonthSummary, DollarValue } from "@/types/transaction"
+import type { Transaction, MonthSummary, DollarValue, ClosedMonth } from "@/types/transaction"
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
 import { transactionsService } from '@/lib/transactions'
@@ -10,18 +10,20 @@ import { transactionsService } from '@/lib/transactions'
 interface TransactionContextType {
   transactions: Transaction[]
   dollarValues: DollarValue[]
+  closedMonths: ClosedMonth[]
   addTransaction: (transaction: Omit<Transaction, "id" | "created_at" | "updated_at" | "user_id">) => Promise<void>
   updateTransaction: (id: string, transaction: Partial<Transaction>) => Promise<void>
   deleteTransaction: (id: string) => Promise<void>
-  getMonthTransactions: (month: string) => Transaction[]
+  getMonthTransactions: (month: string, includeArchived: boolean) => Transaction[]
   getMonthSummary: (month: string) => MonthSummary
   getLastSixMonthsSummary: () => MonthSummary[]
   getAllMonthsSummary: () => MonthSummary[]
   getDollarValue: (month: string) => DollarValue | undefined
   updateDollarValue: (month: string, value: number) => Promise<void>
   getMonthCategorySummary: (month: string, type: "ingreso" | "gasto") => { category: string; amount: number }[]
-  closeMonth: (month: string) => Promise<{ success: boolean; message: string; nextMonth: string }>
+  closeMonth: (month: string, carryOverAmount?: number) => Promise<{ success: boolean; message: string; nextMonth: string }>
   loadNextMonthTransactions: (nextMonth: string, carryOverAmount?: number) => Promise<void>
+  getClosedMonths: () => ClosedMonth[]
   isLoading: boolean
   isFirebaseEnabled: boolean
   hasIndexErrors: boolean
@@ -34,6 +36,7 @@ const TransactionContext = createContext<TransactionContextType | undefined>(und
 export function TransactionProvider({ children }: { children: React.ReactNode }) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [dollarValues, setDollarValues] = useState<DollarValue[]>([])
+  const [closedMonths, setClosedMonths] = useState<ClosedMonth[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isFirebaseEnabled, setIsFirebaseEnabled] = useState(false)
   const [hasIndexErrors, setHasIndexErrors] = useState(false)
@@ -58,54 +61,34 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     const loadInitialData = async () => {
       try {
-        console.log('Cargando datos...')
-        
         if (isFirebaseEnabled && user) {
           // Cargar desde Firebase
-          console.log('Cargando desde Firebase...')
-          
-          // Cargar transacciones
           const transactionsResult = await transactionsService.getTransactions(user.uid)
-          if (transactionsResult.success && transactionsResult.transactions) {
-            setTransactions(transactionsResult.transactions)
-            console.log('Transacciones cargadas desde Firebase:', transactionsResult.transactions.length)
-          } else {
-            console.error('Error al cargar transacciones desde Firebase:', transactionsResult.error)
-            if (transactionsResult.error && transactionsResult.error.includes('index')) {
-              console.log('🔗 Enlace para crear índice de transacciones:', transactionsResult.error.match(/https:\/\/console\.firebase\.google\.com[^\s]*/)?.[0])
-              setHasIndexErrors(true)
-            } else {
-              toast('Error al cargar transacciones desde Firebase')
-            }
-          }
-          
-          // Cargar valores del dólar
           const dollarValuesResult = await transactionsService.getDollarValues(user.uid)
-          if (dollarValuesResult.success && dollarValuesResult.dollarValues) {
-            setDollarValues(dollarValuesResult.dollarValues)
-            console.log('Valores del dólar cargados desde Firebase:', dollarValuesResult.dollarValues.length)
+          const closedMonthsResult = await transactionsService.getClosedMonths(user.uid)
+          
+          if (transactionsResult.success) {
+            setTransactions(transactionsResult.transactions || [])
           } else {
-            console.error('Error al cargar valores del dólar desde Firebase:', dollarValuesResult.error)
-            if (dollarValuesResult.error && dollarValuesResult.error.includes('index')) {
-              const indexUrl = dollarValuesResult.error.match(/https:\/\/console\.firebase\.google\.com[^\s]*/)?.[0]
-              console.log('🔗 Enlace para crear índice de valores del dólar:', indexUrl)
+            console.error('Error al cargar transacciones:', transactionsResult.error)
+            if (transactionsResult.error && transactionsResult.error.includes('index')) {
               setHasIndexErrors(true)
-              
-              // Mostrar enlace en consola para facilitar el acceso
-              if (indexUrl) {
-                console.log('📋 Para crear el índice manualmente, visita:')
-                console.log(indexUrl)
-              }
-            } else {
-              toast('Error al cargar valores del dólar desde Firebase')
             }
           }
-          
-          // Si ambos fallan por índices, cargar datos locales temporalmente
-          if ((!transactionsResult.success && transactionsResult.error?.includes('index')) && 
-              (!dollarValuesResult.success && dollarValuesResult.error?.includes('index'))) {
-            console.log('🔄 Cargando datos locales temporalmente mientras se crean los índices...')
-            loadLocalData()
+
+          if (dollarValuesResult.success) {
+            setDollarValues(dollarValuesResult.dollarValues || [])
+          } else {
+            console.error('Error al cargar valores del dólar:', dollarValuesResult.error)
+            if (dollarValuesResult.error && dollarValuesResult.error.includes('index')) {
+              setHasIndexErrors(true)
+            }
+          }
+
+          if (closedMonthsResult.success) {
+            setClosedMonths(closedMonthsResult.closedMonths || [])
+          } else {
+            console.error('Error al cargar meses cerrados:', closedMonthsResult.error)
           }
         } else {
           // Cargar datos locales
@@ -123,138 +106,29 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
 
     const loadLocalData = () => {
-      // Datos de prueba para desarrollo
-      const mockTransactions: Transaction[] = [
-        {
-          id: '1',
-          amount: 50000,
-          type: 'ingreso',
-          category_id: 'sueldo',
-          date: '2024-01-15',
-          description: 'Salario enero',
-          created_at: '2024-01-15T10:00:00Z',
-          updated_at: '2024-01-15T10:00:00Z',
-          user_id: 'mock-user'
-        },
-        {
-          id: '2',
-          amount: 15000,
-          type: 'gasto',
-          category_id: 'alimentacion',
-          date: '2024-01-20',
-          description: 'Supermercado',
-          created_at: '2024-01-20T15:30:00Z',
-          updated_at: '2024-01-20T15:30:00Z',
-          user_id: 'mock-user'
-        },
-        {
-          id: '3',
-          amount: 8000,
-          type: 'gasto',
-          category_id: 'transporte',
-          date: '2024-01-22',
-          description: 'Combustible',
-          created_at: '2024-01-22T09:15:00Z',
-          updated_at: '2024-01-22T09:15:00Z',
-          user_id: 'mock-user'
-        },
-        {
-          id: '4',
-          amount: 60000,
-          type: 'ingreso',
-          category_id: 'sueldo',
-          date: '2024-02-15',
-          description: 'Salario febrero',
-          created_at: '2024-02-15T10:00:00Z',
-          updated_at: '2024-02-15T10:00:00Z',
-          user_id: 'mock-user'
-        },
-        {
-          id: '5',
-          amount: 12000,
-          type: 'gasto',
-          category_id: 'vivienda',
-          date: '2024-02-01',
-          description: 'Alquiler',
-          created_at: '2024-02-01T12:00:00Z',
-          updated_at: '2024-02-01T12:00:00Z',
-          user_id: 'mock-user'
-        },
-        {
-          id: '6',
-          amount: 1000,
-          type: 'ingreso',
-          category_id: 'usdt',
-          date: '2024-02-10',
-          description: 'Venta USDT',
-          created_at: '2024-02-10T14:20:00Z',
-          updated_at: '2024-02-10T14:20:00Z',
-          user_id: 'mock-user'
-        },
-        {
-          id: '7',
-          amount: 5000,
-          type: 'ingreso',
-          category_id: 'finanzas',
-          date: '2024-02-20',
-          description: 'Inversión',
-          created_at: '2024-02-20T16:45:00Z',
-          updated_at: '2024-02-20T16:45:00Z',
-          user_id: 'mock-user'
-        }
-      ]
-      
-      const mockDollarValues: DollarValue[] = [
-        {
-          id: '1',
-          month: '2024-01',
-          value: 850,
-          created_at: '2024-01-01T00:00:00Z',
-          updated_at: '2024-01-01T00:00:00Z',
-          user_id: 'mock-user'
-        },
-        {
-          id: '2',
-          month: '2024-02',
-          value: 900,
-          created_at: '2024-02-01T00:00:00Z',
-          updated_at: '2024-02-01T00:00:00Z',
-          user_id: 'mock-user'
-        }
-      ]
-      
-      // Intentar cargar desde localStorage primero
-      const cachedTransactions = localStorage.getItem(`transactions-${storageId}`)
-      const cachedDollarValues = localStorage.getItem(`dollar-values-${storageId}`)
-      
-      if (cachedTransactions) {
-        try {
-          const parsedTransactions = JSON.parse(cachedTransactions)
+      try {
+        // Cargar transacciones desde localStorage
+        const storedTransactions = localStorage.getItem(`transactions-${storageId}`)
+        if (storedTransactions) {
+          const parsedTransactions = JSON.parse(storedTransactions)
           setTransactions(parsedTransactions)
-          console.log('Transacciones cargadas desde localStorage:', parsedTransactions.length)
-        } catch (e) {
-          console.error('Error al parsear transacciones del localStorage:', e)
-          setTransactions(mockTransactions)
-          localStorage.setItem(`transactions-${storageId}`, JSON.stringify(mockTransactions))
         }
-      } else {
-        setTransactions(mockTransactions)
-        localStorage.setItem(`transactions-${storageId}`, JSON.stringify(mockTransactions))
-      }
-      
-      if (cachedDollarValues) {
-        try {
-          const parsedDollarValues = JSON.parse(cachedDollarValues)
+
+        // Cargar valores del dólar desde localStorage
+        const storedDollarValues = localStorage.getItem(`dollar-values-${storageId}`)
+        if (storedDollarValues) {
+          const parsedDollarValues = JSON.parse(storedDollarValues)
           setDollarValues(parsedDollarValues)
-          console.log('Valores del dólar cargados desde localStorage:', parsedDollarValues.length)
-        } catch (e) {
-          console.error('Error al parsear valores del dólar del localStorage:', e)
-          setDollarValues(mockDollarValues)
-          localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(mockDollarValues))
         }
-      } else {
-        setDollarValues(mockDollarValues)
-        localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(mockDollarValues))
+
+        // Cargar meses cerrados desde localStorage
+        const storedClosedMonths = localStorage.getItem(`closed-months-${storageId}`)
+        if (storedClosedMonths) {
+          const parsedClosedMonths = JSON.parse(storedClosedMonths)
+          setClosedMonths(parsedClosedMonths)
+        }
+      } catch (error) {
+        console.error('Error al cargar datos locales:', error)
       }
     }
 
@@ -375,8 +249,11 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   }
 
   // Obtener transacciones de un mes específico
-  const getMonthTransactions = (month: string) => {
-    return transactions.filter((t) => t.date.startsWith(month))
+  const getMonthTransactions = (month: string, includeArchived: boolean = false) => {
+    return transactions.filter((t) => {
+      const isInMonth = t.date.startsWith(month)
+      return includeArchived ? isInMonth : (isInMonth && !t.archived)
+    })
   }
 
   // Obtener resumen de un mes específico
@@ -566,7 +443,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   }
 
   // Cerrar el mes actual y generar resumen
-  const closeMonth = async (month: string): Promise<{ success: boolean; message: string; nextMonth: string }> => {
+  const closeMonth = async (month: string, carryOverAmount?: number): Promise<{ success: boolean; message: string; nextMonth: string }> => {
     try {
       const monthSummary = getMonthSummary(month)
       const monthTransactions = getMonthTransactions(month)
@@ -584,23 +461,83 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       const nextMonthDate = new Date(parseInt(year), parseInt(monthNum) - 1 + 1, 1)
       const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`
 
-      // Crear resumen del mes cerrado
-      const monthCloseSummary = {
-        month,
-        income: monthSummary.income,
-        expense: monthSummary.expense,
-        balance: monthSummary.balance,
-        transactionCount: monthTransactions.length,
-        closedAt: new Date().toISOString()
+      if (isFirebaseEnabled && user) {
+        // Archivar transacciones en Firebase
+        const archiveResult = await transactionsService.archiveMonthTransactions(user.uid, month)
+        if (!archiveResult.success) {
+          throw new Error(archiveResult.error)
+        }
+
+        // Guardar el resumen del mes cerrado
+        const closedMonthData = {
+          month,
+          income: monthSummary.income,
+          expense: monthSummary.expense,
+          balance: monthSummary.balance,
+          transaction_count: monthTransactions.length,
+          closed_at: new Date().toISOString(),
+          carry_over_amount: carryOverAmount
+        }
+
+        const saveResult = await transactionsService.saveClosedMonth(closedMonthData, user.uid)
+        if (!saveResult.success) {
+          throw new Error(saveResult.error)
+        }
+
+        // Actualizar estado local
+        setTransactions(prev => prev.map(t => 
+          t.date.startsWith(month) ? { ...t, archived: true } : t
+        ))
+
+        const newClosedMonth: ClosedMonth = {
+          id: saveResult.id!,
+          ...closedMonthData,
+          user_id: user.uid
+        }
+        setClosedMonths(prev => [newClosedMonth, ...prev])
+      } else {
+        // Archivar localmente
+        const updatedTransactions = transactions.map(t => 
+          t.date.startsWith(month) ? { ...t, archived: true } : t
+        )
+        setTransactions(updatedTransactions)
+        localStorage.setItem(`transactions-${storageId}`, JSON.stringify(updatedTransactions))
+
+        // Guardar mes cerrado localmente
+        const newClosedMonth: ClosedMonth = {
+          id: Date.now().toString(),
+          month,
+          income: monthSummary.income,
+          expense: monthSummary.expense,
+          balance: monthSummary.balance,
+          transaction_count: monthTransactions.length,
+          closed_at: new Date().toISOString(),
+          user_id: 'mock-user',
+          carry_over_amount: carryOverAmount
+        }
+        setClosedMonths(prev => [newClosedMonth, ...prev])
+        localStorage.setItem(`closed-months-${storageId}`, JSON.stringify([newClosedMonth, ...closedMonths]))
       }
 
-      // Guardar el resumen del mes cerrado (podría guardarse en una colección separada)
-      console.log('Mes cerrado:', monthCloseSummary)
+      // Si se especifica un monto para llevar al próximo mes, crear una transacción de ingreso inicial
+      if (carryOverAmount && carryOverAmount > 0) {
+        const initialTransaction = {
+          amount: carryOverAmount,
+          type: 'ingreso' as const,
+          category_id: 'finanzas',
+          date: `${nextMonth}-01`,
+          description: 'Saldo inicial del mes anterior'
+        }
+
+        await addTransaction(initialTransaction)
+        toast(`Saldo inicial de $${carryOverAmount.toLocaleString('es-AR')} cargado para ${nextMonth}`)
+      }
 
       const message = `Mes ${month} cerrado exitosamente. 
         Ingresos: $${monthSummary.income.toLocaleString('es-AR')} 
         Gastos: $${monthSummary.expense.toLocaleString('es-AR')} 
-        Balance: $${monthSummary.balance.toLocaleString('es-AR')}`
+        Balance: $${monthSummary.balance.toLocaleString('es-AR')}
+        Transacciones archivadas: ${monthTransactions.length}`
 
       toast('Mes cerrado exitosamente')
       
@@ -644,9 +581,15 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
   }
 
+  // Obtener meses cerrados
+  const getClosedMonths = (): ClosedMonth[] => {
+    return closedMonths
+  }
+
   const value = {
     transactions,
     dollarValues,
+    closedMonths,
     addTransaction,
     updateTransaction,
     deleteTransaction,
@@ -659,6 +602,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     getMonthCategorySummary,
     closeMonth,
     loadNextMonthTransactions,
+    getClosedMonths,
     isLoading,
     isFirebaseEnabled,
     hasIndexErrors,

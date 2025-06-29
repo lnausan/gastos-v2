@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { format, parse } from "date-fns"
+import { format, parse, addMonths } from "date-fns"
 import { es } from "date-fns/locale"
 import { CalendarIcon } from "lucide-react"
 
@@ -13,9 +13,10 @@ import { cn } from "@/lib/utils"
 interface MonthSelectorProps {
   value: string // formato: YYYY-MM
   onChange: (value: string) => void
+  allowFutureMonths?: boolean // Nueva prop para permitir meses futuros
 }
 
-export default function MonthSelector({ value, onChange }: MonthSelectorProps) {
+export default function MonthSelector({ value, onChange, allowFutureMonths = true }: MonthSelectorProps) {
   const [date, setDate] = useState<Date>(() => {
     return value ? parse(value, "yyyy-MM", new Date()) : new Date()
   })
@@ -26,6 +27,9 @@ export default function MonthSelector({ value, onChange }: MonthSelectorProps) {
       onChange(format(newDate, "yyyy-MM"))
     }
   }
+
+  // Calcular la fecha máxima permitida (12 meses en el futuro)
+  const maxDate = allowFutureMonths ? addMonths(new Date(), 12) : new Date()
 
   return (
     <Popover>
@@ -49,7 +53,7 @@ export default function MonthSelector({ value, onChange }: MonthSelectorProps) {
           mode="single"
           selected={date}
           onSelect={handleSelect}
-          disabled={(date) => date > new Date() || date < new Date("1900-01-01")}
+          disabled={(date) => date > maxDate || date < new Date("1900-01-01")}
           locale={es}
           initialFocus
         />

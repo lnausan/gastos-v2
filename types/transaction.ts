@@ -22,6 +22,7 @@ export interface Transaction {
   created_at: string
   updated_at: string
   user_id: string
+  archived?: boolean // Indica si la transacción está archivada (mes cerrado)
 }
 
 export interface MonthSummary {
@@ -38,4 +39,16 @@ export interface DollarValue {
   user_id: string
   created_at: string
   updated_at: string
+}
+
+export interface ClosedMonth {
+  id: string
+  month: string // formato: YYYY-MM
+  income: number
+  expense: number
+  balance: number
+  transaction_count: number
+  closed_at: string
+  user_id: string
+  carry_over_amount?: number // Monto llevado al próximo mes
 }
