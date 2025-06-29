@@ -24,6 +24,7 @@ interface TransactionContextType {
   closeMonth: (month: string, carryOverAmount?: number) => Promise<{ success: boolean; message: string; nextMonth: string }>
   loadNextMonthTransactions: (nextMonth: string, carryOverAmount?: number) => Promise<void>
   getClosedMonths: () => ClosedMonth[]
+  refreshMonthTransactions: (month: string) => Promise<void>
   cleanupDuplicateClosedMonths: () => void
   isLoading: boolean
   isFirebaseEnabled: boolean
@@ -561,8 +562,13 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           description: 'Saldo inicial del mes anterior'
         }
 
-        await addTransaction(initialTransaction)
-        toast(`Saldo inicial de $${carryOverAmount.toLocaleString('es-AR')} cargado para ${nextMonth}`)
+        try {
+          await addTransaction(initialTransaction)
+          toast.success(`Saldo inicial de $${carryOverAmount.toLocaleString('es-AR')} cargado para ${nextMonth}`)
+        } catch (error) {
+          console.error('Error al crear transacción de saldo inicial:', error)
+          toast.error('Error al crear transacción de saldo inicial')
+        }
       }
 
       const message = `Mes ${month} cerrado exitosamente. 
@@ -571,7 +577,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         Balance: $${monthSummary.balance.toLocaleString('es-AR')}
         Transacciones archivadas: ${monthTransactions.length}`
 
-      toast('Mes cerrado exitosamente')
+      toast.success('Mes cerrado exitosamente')
       
       return {
         success: true,
@@ -618,6 +624,21 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     return closedMonths
   }
 
+  // Forzar actualización de transacciones para un mes específico
+  const refreshMonthTransactions = async (month: string) => {
+    try {
+      if (isFirebaseEnabled && user) {
+        // Recargar transacciones desde Firebase para el mes específico
+        const result = await transactionsService.getTransactions(user.uid)
+        if (result.success) {
+          setTransactions(result.transactions || [])
+        }
+      }
+    } catch (error) {
+      console.error('Error al actualizar transacciones del mes:', error)
+    }
+  }
+
   const cleanupDuplicateClosedMonths = () => {
     setClosedMonths(cleanDuplicateClosedMonths(closedMonths))
   }
@@ -645,6 +666,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     hasIndexErrors,
     clearAllData,
     retryFirebaseConnection,
+    refreshMonthTransactions,
   }
 
   return (

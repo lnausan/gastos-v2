@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Suspense } from "react"
+import { useState, Suspense, useEffect } from "react"
 import { format, parse, isAfter, startOfMonth } from "date-fns"
 import { es } from "date-fns/locale"
 import { Plus, ArrowUpIcon, ArrowDownIcon, DollarSign, Calendar } from "lucide-react"
@@ -35,7 +35,16 @@ function BarChartWithData({ data }: { data: any }) {
 }
 
 export default function DashboardPage() {
-  const { getLastSixMonthsSummary, getMonthSummary, getDollarValue, isLoading, transactions, hasIndexErrors, retryFirebaseConnection } = useTransactions()
+  const { 
+    getLastSixMonthsSummary, 
+    getMonthSummary, 
+    getDollarValue, 
+    isLoading, 
+    transactions, 
+    hasIndexErrors, 
+    retryFirebaseConnection,
+    refreshMonthTransactions
+  } = useTransactions()
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"))
   const [isFormOpen, setIsFormOpen] = useState(false)
 
@@ -44,6 +53,13 @@ export default function DashboardPage() {
 
   // Verificar si el mes seleccionado es futuro
   const isFutureMonth = isAfter(startOfMonth(parse(selectedMonth, "yyyy-MM", new Date())), startOfMonth(new Date()))
+
+  // Actualizar transacciones cuando cambie el mes seleccionado
+  useEffect(() => {
+    if (!isLoading) {
+      refreshMonthTransactions(selectedMonth)
+    }
+  }, [selectedMonth, isLoading, refreshMonthTransactions])
 
   if (isLoading && transactions.length === 0) {
     return (

@@ -50,7 +50,7 @@ export default function MonthCloser({ currentMonth, onMonthChange, onOpenTransac
       const result = await closeMonth(currentMonth, amountToCarry)
       
       if (result.success) {
-        // Cambiar al próximo mes
+        // Cambiar al próximo mes inmediatamente
         if (onMonthChange) {
           onMonthChange(result.nextMonth)
         }
@@ -59,10 +59,11 @@ export default function MonthCloser({ currentMonth, onMonthChange, onOpenTransac
         toast.success('Mes cerrado y próximo mes preparado exitosamente')
 
         // Abrir el formulario de transacciones después de un pequeño delay
+        // para asegurar que el cambio de mes se haya procesado
         if (onOpenTransactionForm) {
           setTimeout(() => {
             onOpenTransactionForm()
-          }, 1000) // 1 segundo de delay
+          }, 500) // Reducido a 500ms para mejor respuesta
         }
       } else {
         toast.error(result.message)

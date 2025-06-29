@@ -1,9 +1,9 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
 import { format, parse } from "date-fns"
 import { es } from "date-fns/locale"
-import { Edit, Trash2, Archive } from "lucide-react"
+import { Edit, Trash2, Archive, Loader2 } from "lucide-react"
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -48,12 +48,20 @@ const LOCAL_CATEGORIES = [
 ]
 
 export default function TransactionList({ month, simplified = false }: TransactionListProps) {
-  const { getMonthTransactions, deleteTransaction } = useTransactions()
+  const { getMonthTransactions, deleteTransaction, isLoading } = useTransactions()
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [isPending, startTransition] = useTransition()
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   const transactions = getMonthTransactions(month, true)
+
+  // Mostrar estado de carga cuando se cambia de mes
+  useEffect(() => {
+    setIsRefreshing(true)
+    const timer = setTimeout(() => setIsRefreshing(false), 500)
+    return () => clearTimeout(timer)
+  }, [month])
 
   // Ordenar transacciones por fecha (más recientes primero)
   const sortedTransactions = [...transactions].sort((a, b) => 
@@ -86,8 +94,24 @@ export default function TransactionList({ month, simplified = false }: Transacti
 
   return (
     <div className="space-y-4">
-      {sortedTransactions.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">No hay transacciones para este mes.</div>
+      {isRefreshing ? (
+        <div className="text-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-muted-foreground" />
+          <div className="text-muted-foreground">Actualizando transacciones...</div>
+        </div>
+      ) : sortedTransactions.length === 0 ? (
+        <div className="text-center py-8">
+          <div className="text-muted-foreground mb-2">
+            No hay transacciones para este mes.
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {month === format(new Date(), "yyyy-MM") ? (
+              "Agrega tu primera transacción del mes usando el botón 'Nueva transacción'."
+            ) : (
+              "Agrega transacciones para este mes o selecciona otro mes para ver el historial."
+            )}
+          </div>
+        </div>
       ) : (
         <Table>
           <TableHeader>
