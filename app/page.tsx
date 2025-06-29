@@ -13,6 +13,7 @@ import TransactionForm from "@/components/transaction-form"
 import BarChart from "@/components/charts/bar-chart"
 import TransactionList from "@/components/transaction-list"
 import MonthSelector from "@/components/month-selector"
+import MonthCloser from "@/components/month-closer"
 import DollarValue from "@/components/dollar-value"
 import CategorySummary from "@/components/category-summary"
 import { FirebaseSetupStatus } from "@/components/firebase-setup-status"
@@ -68,6 +69,7 @@ export default function DashboardPage() {
 
         <div className="flex items-center gap-4">
           <MonthSelector value={selectedMonth} onChange={setSelectedMonth} />
+          <MonthCloser currentMonth={selectedMonth} onMonthChange={setSelectedMonth} />
 
           <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
             <DialogTrigger asChild>

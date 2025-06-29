@@ -20,6 +20,8 @@ interface TransactionContextType {
   getDollarValue: (month: string) => DollarValue | undefined
   updateDollarValue: (month: string, value: number) => Promise<void>
   getMonthCategorySummary: (month: string, type: "ingreso" | "gasto") => { category: string; amount: number }[]
+  closeMonth: (month: string) => Promise<{ success: boolean; message: string; nextMonth: string }>
+  loadNextMonthTransactions: (nextMonth: string, carryOverAmount?: number) => Promise<void>
   isLoading: boolean
   isFirebaseEnabled: boolean
   hasIndexErrors: boolean
@@ -563,6 +565,85 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     }
   }
 
+  // Cerrar el mes actual y generar resumen
+  const closeMonth = async (month: string): Promise<{ success: boolean; message: string; nextMonth: string }> => {
+    try {
+      const monthSummary = getMonthSummary(month)
+      const monthTransactions = getMonthTransactions(month)
+      
+      if (monthTransactions.length === 0) {
+        return {
+          success: false,
+          message: 'No hay transacciones para cerrar este mes',
+          nextMonth: ''
+        }
+      }
+
+      // Calcular el próximo mes
+      const [year, monthNum] = month.split('-')
+      const nextMonthDate = new Date(parseInt(year), parseInt(monthNum) - 1 + 1, 1)
+      const nextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, '0')}`
+
+      // Crear resumen del mes cerrado
+      const monthCloseSummary = {
+        month,
+        income: monthSummary.income,
+        expense: monthSummary.expense,
+        balance: monthSummary.balance,
+        transactionCount: monthTransactions.length,
+        closedAt: new Date().toISOString()
+      }
+
+      // Guardar el resumen del mes cerrado (podría guardarse en una colección separada)
+      console.log('Mes cerrado:', monthCloseSummary)
+
+      const message = `Mes ${month} cerrado exitosamente. 
+        Ingresos: $${monthSummary.income.toLocaleString('es-AR')} 
+        Gastos: $${monthSummary.expense.toLocaleString('es-AR')} 
+        Balance: $${monthSummary.balance.toLocaleString('es-AR')}`
+
+      toast('Mes cerrado exitosamente')
+      
+      return {
+        success: true,
+        message,
+        nextMonth
+      }
+    } catch (error) {
+      console.error('Error al cerrar el mes:', error)
+      toast('Error al cerrar el mes')
+      return {
+        success: false,
+        message: 'Error al cerrar el mes',
+        nextMonth: ''
+      }
+    }
+  }
+
+  // Cargar transacciones del próximo mes (opcionalmente con saldo inicial)
+  const loadNextMonthTransactions = async (nextMonth: string, carryOverAmount?: number): Promise<void> => {
+    try {
+      // Si se especifica un monto para llevar al próximo mes, crear una transacción de ingreso inicial
+      if (carryOverAmount && carryOverAmount > 0) {
+        const initialTransaction = {
+          amount: carryOverAmount,
+          type: 'ingreso' as const,
+          category_id: 'finanzas',
+          date: `${nextMonth}-01`,
+          description: 'Saldo inicial del mes anterior'
+        }
+
+        await addTransaction(initialTransaction)
+        toast(`Saldo inicial de $${carryOverAmount.toLocaleString('es-AR')} cargado para ${nextMonth}`)
+      }
+
+      toast(`Listo para cargar transacciones de ${nextMonth}`)
+    } catch (error) {
+      console.error('Error al cargar transacciones del próximo mes:', error)
+      toast('Error al cargar transacciones del próximo mes')
+    }
+  }
+
   const value = {
     transactions,
     dollarValues,
@@ -576,6 +657,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     getDollarValue,
     updateDollarValue,
     getMonthCategorySummary,
+    closeMonth,
+    loadNextMonthTransactions,
     isLoading,
     isFirebaseEnabled,
     hasIndexErrors,
