@@ -74,8 +74,13 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           return
         }
 
+        // Siempre cargar datos locales primero, independientemente del estado de Firebase
+        console.log('Cargando datos locales')
+        loadLocalData()
+        
+        // Si Firebase está habilitado y hay usuario, intentar cargar desde Firebase
         if (isFirebaseEnabled && user) {
-          console.log('Cargando datos desde Firebase para usuario:', user.uid)
+          console.log('Intentando cargar datos desde Firebase para usuario:', user.uid)
           try {
             // Cargar desde Firebase
             const transactionsResult = await transactionsService.getTransactions(user.uid)
@@ -84,21 +89,19 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
             
             if (transactionsResult.success) {
               setTransactions(transactionsResult.transactions || [])
+              console.log('Transacciones cargadas desde Firebase:', transactionsResult.transactions?.length || 0)
             } else {
-              console.error('Error al cargar transacciones:', transactionsResult.error)
+              console.error('Error al cargar transacciones desde Firebase:', transactionsResult.error)
               if (transactionsResult.error && transactionsResult.error.includes('index')) {
                 setHasIndexErrors(true)
               }
-              // Si falla Firebase, cargar datos locales
-              console.log('Fallback a datos locales para transacciones')
-              loadLocalData()
-              return
             }
 
             if (dollarValuesResult.success) {
               setDollarValues(dollarValuesResult.dollarValues || [])
+              console.log('Valores del dólar cargados desde Firebase:', dollarValuesResult.dollarValues?.length || 0)
             } else {
-              console.error('Error al cargar valores del dólar:', dollarValuesResult.error)
+              console.error('Error al cargar valores del dólar desde Firebase:', dollarValuesResult.error)
               if (dollarValuesResult.error && dollarValuesResult.error.includes('index')) {
                 setHasIndexErrors(true)
               }
@@ -107,19 +110,14 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
             if (closedMonthsResult.success) {
               const cleanedClosedMonths = cleanDuplicateClosedMonths(closedMonthsResult.closedMonths || [])
               setClosedMonths(cleanedClosedMonths)
+              console.log('Meses cerrados cargados desde Firebase:', cleanedClosedMonths.length)
             } else {
-              console.error('Error al cargar meses cerrados:', closedMonthsResult.error)
+              console.error('Error al cargar meses cerrados desde Firebase:', closedMonthsResult.error)
             }
           } catch (error) {
             console.error('Error al cargar datos desde Firebase:', error)
-            console.log('Fallback a datos locales debido a error de Firebase')
-            loadLocalData()
-            return
+            console.log('Manteniendo datos locales debido a error de Firebase')
           }
-        } else {
-          // Cargar datos locales
-          console.log('Cargando datos locales')
-          loadLocalData()
         }
         
         console.log('Datos cargados correctamente')
