@@ -63,6 +63,10 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     const loadInitialData = async () => {
       try {
+        console.log('Iniciando carga de datos...')
+        console.log('Firebase habilitado:', isFirebaseEnabled)
+        console.log('Usuario:', user ? 'Autenticado' : 'No autenticado')
+
         // Si Firebase está habilitado pero no hay usuario, esperar
         if (isFirebaseEnabled && !user) {
           console.log('Esperando autenticación del usuario...')
@@ -118,11 +122,15 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
     const loadLocalData = () => {
       try {
+        console.log('Cargando datos desde localStorage...')
         // Cargar transacciones desde localStorage
         const storedTransactions = localStorage.getItem(`transactions-${storageId}`)
         if (storedTransactions) {
           const parsedTransactions = JSON.parse(storedTransactions)
           setTransactions(parsedTransactions)
+          console.log('Transacciones cargadas desde localStorage:', parsedTransactions.length)
+        } else {
+          console.log('No hay transacciones en localStorage')
         }
 
         // Cargar valores del dólar desde localStorage
@@ -130,6 +138,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         if (storedDollarValues) {
           const parsedDollarValues = JSON.parse(storedDollarValues)
           setDollarValues(parsedDollarValues)
+          console.log('Valores del dólar cargados desde localStorage:', parsedDollarValues.length)
+        } else {
+          console.log('No hay valores del dólar en localStorage')
         }
 
         // Cargar meses cerrados desde localStorage
@@ -138,6 +149,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           const parsedClosedMonths = JSON.parse(storedClosedMonths)
           const cleanedClosedMonths = cleanDuplicateClosedMonths(parsedClosedMonths)
           setClosedMonths(cleanedClosedMonths)
+          console.log('Meses cerrados cargados desde localStorage:', cleanedClosedMonths.length)
+        } else {
+          console.log('No hay meses cerrados en localStorage')
         }
       } catch (error) {
         console.error('Error al cargar datos locales:', error)
@@ -149,7 +163,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   // Efecto adicional para manejar cambios en el usuario
   useEffect(() => {
-    if (user && isFirebaseEnabled && transactions.length === 0) {
+    if (user && isFirebaseEnabled && transactions.length === 0 && !isLoading) {
       console.log('Usuario autenticado, recargando datos...')
       setIsLoading(true)
       // Recargar datos cuando el usuario cambia y no hay datos cargados
@@ -178,7 +192,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       
       loadUserData()
     }
-  }, [user?.uid, isFirebaseEnabled, transactions.length])
+  }, [user?.uid, isFirebaseEnabled, transactions.length, isLoading])
 
   const clearAllData = () => {
     setTransactions([])
