@@ -61,7 +61,7 @@ export default function DashboardPage() {
     }
   }, [selectedMonth, isLoading, refreshMonthTransactions])
 
-  if (isLoading && transactions.length === 0) {
+  if (isLoading) {
     return (
       <div className="space-y-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -71,6 +71,47 @@ export default function DashboardPage() {
           </div>
         </div>
         <DashboardSkeleton />
+      </div>
+    )
+  }
+
+  // Si no hay transacciones y no está cargando, mostrar mensaje
+  if (!isLoading && transactions.length === 0) {
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-muted-foreground">Visualiza y gestiona tus finanzas personales.</p>
+          </div>
+        </div>
+        
+        <div className="text-center py-12">
+          <div className="mx-auto max-w-md">
+            <div className="rounded-full bg-muted p-3 w-fit mx-auto mb-4">
+              <Plus className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">No hay transacciones</h3>
+            <p className="text-muted-foreground mb-6">
+              Comienza agregando tu primera transacción para ver tus finanzas en el dashboard.
+            </p>
+            <Button onClick={() => setIsFormOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Agregar primera transacción
+            </Button>
+          </div>
+        </div>
+
+        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
+          <DialogContent className="sm:max-w-[425px]" aria-describedby="new-transaction-desc">
+            <DialogHeader>
+              <DialogTitle>Nueva transacción</DialogTitle>
+            </DialogHeader>
+            <p id="new-transaction-desc" className="sr-only">
+              Completa los campos para agregar una nueva transacción.
+            </p>
+            <TransactionForm onSuccess={() => setIsFormOpen(false)} />
+          </DialogContent>
+        </Dialog>
       </div>
     )
   }

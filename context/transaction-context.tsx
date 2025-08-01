@@ -63,7 +63,14 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     const loadInitialData = async () => {
       try {
+        // Si Firebase está habilitado pero no hay usuario, esperar
+        if (isFirebaseEnabled && !user) {
+          console.log('Esperando autenticación del usuario...')
+          return
+        }
+
         if (isFirebaseEnabled && user) {
+          console.log('Cargando datos desde Firebase para usuario:', user.uid)
           // Cargar desde Firebase
           const transactionsResult = await transactionsService.getTransactions(user.uid)
           const dollarValuesResult = await transactionsService.getDollarValues(user.uid)
@@ -95,6 +102,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           }
         } else {
           // Cargar datos locales
+          console.log('Cargando datos locales')
           loadLocalData()
         }
         
@@ -138,6 +146,39 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
     loadInitialData()
   }, [storageId, isFirebaseEnabled, user])
+
+  // Efecto adicional para manejar cambios en el usuario
+  useEffect(() => {
+    if (user && isFirebaseEnabled && transactions.length === 0) {
+      console.log('Usuario autenticado, recargando datos...')
+      setIsLoading(true)
+      // Recargar datos cuando el usuario cambia y no hay datos cargados
+      const loadUserData = async () => {
+        try {
+          const transactionsResult = await transactionsService.getTransactions(user.uid)
+          const dollarValuesResult = await transactionsService.getDollarValues(user.uid)
+          const closedMonthsResult = await transactionsService.getClosedMonths(user.uid)
+          
+          if (transactionsResult.success) {
+            setTransactions(transactionsResult.transactions || [])
+          }
+          if (dollarValuesResult.success) {
+            setDollarValues(dollarValuesResult.dollarValues || [])
+          }
+          if (closedMonthsResult.success) {
+            const cleanedClosedMonths = cleanDuplicateClosedMonths(closedMonthsResult.closedMonths || [])
+            setClosedMonths(cleanedClosedMonths)
+          }
+        } catch (error) {
+          console.error('Error al recargar datos del usuario:', error)
+        } finally {
+          setIsLoading(false)
+        }
+      }
+      
+      loadUserData()
+    }
+  }, [user?.uid, isFirebaseEnabled, transactions.length])
 
   const clearAllData = () => {
     setTransactions([])

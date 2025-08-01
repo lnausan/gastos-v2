@@ -13,7 +13,9 @@ export function useAuth() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    console.log('Iniciando listener de autenticación...')
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('Estado de autenticación cambiado:', user ? `Usuario: ${user.uid}` : 'No autenticado')
       setUser(user)
       setLoading(false)
     })

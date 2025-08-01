@@ -22,12 +22,15 @@ export function AuthGuard({ children }: AuthGuardProps) {
     if (!loading) {
       if (isProtectedRoute && !user) {
         // Si es una ruta protegida y no hay usuario, redirigir a auth
+        console.log('Usuario no autenticado, redirigiendo a /auth')
         router.push('/auth')
       } else if (pathname === '/auth' && user) {
         // Si está en auth y ya está autenticado, redirigir al dashboard
+        console.log('Usuario autenticado en /auth, redirigiendo a /')
         router.push('/')
       } else {
         // Usuario autorizado o ruta pública
+        console.log('Usuario autorizado para ruta:', pathname)
         setIsAuthorized(true)
       }
     }
@@ -38,8 +41,8 @@ export function AuthGuard({ children }: AuthGuardProps) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-          <p className="mt-2 text-sm text-gray-600">Cargando...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto dark:border-gray-100"></div>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Verificando autenticación...</p>
         </div>
       </div>
     )

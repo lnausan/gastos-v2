@@ -6,6 +6,7 @@ import { Toaster } from 'sonner'
 import Header from '@/components/layout/header'
 import { TransactionProvider } from "@/context/transaction-context"
 import { AuthGuard } from "@/components/auth/auth-guard"
+import { DebugInfo } from "@/components/debug-info"
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -38,6 +39,7 @@ export default function RootLayout({
               </div>
             </AuthGuard>
             <Toaster />
+            <DebugInfo />
           </TransactionProvider>
         </ThemeProvider>
       </body>
