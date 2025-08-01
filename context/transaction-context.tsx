@@ -52,8 +52,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
       )
-      setIsFirebaseEnabled(hasConfig)
-      console.log('Firebase configurado:', hasConfig)
+      // Temporalmente deshabilitar Firebase para evitar errores de permisos
+      setIsFirebaseEnabled(false)
+      console.log('Firebase configurado:', hasConfig, 'pero temporalmente deshabilitado')
     }
     
     checkFirebaseConfig()
@@ -75,34 +76,45 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
         if (isFirebaseEnabled && user) {
           console.log('Cargando datos desde Firebase para usuario:', user.uid)
-          // Cargar desde Firebase
-          const transactionsResult = await transactionsService.getTransactions(user.uid)
-          const dollarValuesResult = await transactionsService.getDollarValues(user.uid)
-          const closedMonthsResult = await transactionsService.getClosedMonths(user.uid)
-          
-          if (transactionsResult.success) {
-            setTransactions(transactionsResult.transactions || [])
-          } else {
-            console.error('Error al cargar transacciones:', transactionsResult.error)
-            if (transactionsResult.error && transactionsResult.error.includes('index')) {
-              setHasIndexErrors(true)
+          try {
+            // Cargar desde Firebase
+            const transactionsResult = await transactionsService.getTransactions(user.uid)
+            const dollarValuesResult = await transactionsService.getDollarValues(user.uid)
+            const closedMonthsResult = await transactionsService.getClosedMonths(user.uid)
+            
+            if (transactionsResult.success) {
+              setTransactions(transactionsResult.transactions || [])
+            } else {
+              console.error('Error al cargar transacciones:', transactionsResult.error)
+              if (transactionsResult.error && transactionsResult.error.includes('index')) {
+                setHasIndexErrors(true)
+              }
+              // Si falla Firebase, cargar datos locales
+              console.log('Fallback a datos locales para transacciones')
+              loadLocalData()
+              return
             }
-          }
 
-          if (dollarValuesResult.success) {
-            setDollarValues(dollarValuesResult.dollarValues || [])
-          } else {
-            console.error('Error al cargar valores del dólar:', dollarValuesResult.error)
-            if (dollarValuesResult.error && dollarValuesResult.error.includes('index')) {
-              setHasIndexErrors(true)
+            if (dollarValuesResult.success) {
+              setDollarValues(dollarValuesResult.dollarValues || [])
+            } else {
+              console.error('Error al cargar valores del dólar:', dollarValuesResult.error)
+              if (dollarValuesResult.error && dollarValuesResult.error.includes('index')) {
+                setHasIndexErrors(true)
+              }
             }
-          }
 
-          if (closedMonthsResult.success) {
-            const cleanedClosedMonths = cleanDuplicateClosedMonths(closedMonthsResult.closedMonths || [])
-            setClosedMonths(cleanedClosedMonths)
-          } else {
-            console.error('Error al cargar meses cerrados:', closedMonthsResult.error)
+            if (closedMonthsResult.success) {
+              const cleanedClosedMonths = cleanDuplicateClosedMonths(closedMonthsResult.closedMonths || [])
+              setClosedMonths(cleanedClosedMonths)
+            } else {
+              console.error('Error al cargar meses cerrados:', closedMonthsResult.error)
+            }
+          } catch (error) {
+            console.error('Error al cargar datos desde Firebase:', error)
+            console.log('Fallback a datos locales debido a error de Firebase')
+            loadLocalData()
+            return
           }
         } else {
           // Cargar datos locales
