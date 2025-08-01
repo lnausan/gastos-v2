@@ -29,7 +29,13 @@ jobs:
         cache: 'pnpm'
 
     - name: Install dependencies
-      run: pnpm install
+      run: pnpm install --frozen-lockfile
+
+    - name: Show TypeScript version
+      run: npx tsc --version
+
+    - name: Show pnpm version
+      run: pnpm --version
 
     - name: Type check
       run: pnpm run type-check
