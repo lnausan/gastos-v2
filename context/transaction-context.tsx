@@ -42,7 +42,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = useState(true)
   const [isFirebaseEnabled, setIsFirebaseEnabled] = useState(false)
   const [hasIndexErrors, setHasIndexErrors] = useState(false)
-  const storageId = useId()
+  const storageId = "gastos-v2"
   const { user } = useAuth()
 
   // Verificar si Firebase está configurado
@@ -67,12 +67,6 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         console.log('Iniciando carga de datos...')
         console.log('Firebase habilitado:', isFirebaseEnabled)
         console.log('Usuario:', user ? 'Autenticado' : 'No autenticado')
-
-        // Si Firebase está habilitado pero no hay usuario, esperar
-        if (isFirebaseEnabled && !user) {
-          console.log('Esperando autenticación del usuario...')
-          return
-        }
 
         // Siempre cargar datos locales primero, independientemente del estado de Firebase
         console.log('Cargando datos locales')
@@ -133,28 +127,41 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     const loadLocalData = () => {
       try {
         console.log('Cargando datos desde localStorage...')
+        console.log('Storage ID:', storageId)
+        
         // Cargar transacciones desde localStorage
         const storedTransactions = localStorage.getItem(`transactions-${storageId}`)
+        console.log('Stored transactions key:', `transactions-${storageId}`)
+        console.log('Stored transactions value:', storedTransactions)
+        
         if (storedTransactions) {
           const parsedTransactions = JSON.parse(storedTransactions)
           setTransactions(parsedTransactions)
           console.log('Transacciones cargadas desde localStorage:', parsedTransactions.length)
         } else {
           console.log('No hay transacciones en localStorage')
+          setTransactions([])
         }
 
         // Cargar valores del dólar desde localStorage
         const storedDollarValues = localStorage.getItem(`dollar-values-${storageId}`)
+        console.log('Stored dollar values key:', `dollar-values-${storageId}`)
+        console.log('Stored dollar values value:', storedDollarValues)
+        
         if (storedDollarValues) {
           const parsedDollarValues = JSON.parse(storedDollarValues)
           setDollarValues(parsedDollarValues)
           console.log('Valores del dólar cargados desde localStorage:', parsedDollarValues.length)
         } else {
           console.log('No hay valores del dólar en localStorage')
+          setDollarValues([])
         }
 
         // Cargar meses cerrados desde localStorage
         const storedClosedMonths = localStorage.getItem(`closed-months-${storageId}`)
+        console.log('Stored closed months key:', `closed-months-${storageId}`)
+        console.log('Stored closed months value:', storedClosedMonths)
+        
         if (storedClosedMonths) {
           const parsedClosedMonths = JSON.parse(storedClosedMonths)
           const cleanedClosedMonths = cleanDuplicateClosedMonths(parsedClosedMonths)
@@ -162,9 +169,14 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           console.log('Meses cerrados cargados desde localStorage:', cleanedClosedMonths.length)
         } else {
           console.log('No hay meses cerrados en localStorage')
+          setClosedMonths([])
         }
       } catch (error) {
         console.error('Error al cargar datos locales:', error)
+        // Establecer arrays vacíos en caso de error
+        setTransactions([])
+        setDollarValues([])
+        setClosedMonths([])
       }
     }
 

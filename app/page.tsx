@@ -43,7 +43,8 @@ export default function DashboardPage() {
     transactions, 
     hasIndexErrors, 
     retryFirebaseConnection,
-    refreshMonthTransactions
+    refreshMonthTransactions,
+    isFirebaseEnabled
   } = useTransactions()
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"))
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -61,6 +62,16 @@ export default function DashboardPage() {
     }
   }, [selectedMonth, isLoading, refreshMonthTransactions])
 
+  // Debug info
+  console.log('Dashboard Debug:', {
+    isLoading,
+    transactionsLength: transactions.length,
+    isFirebaseEnabled,
+    summary,
+    dollarValue,
+    selectedMonth
+  })
+
   if (isLoading) {
     return (
       <div className="space-y-8">
@@ -71,6 +82,9 @@ export default function DashboardPage() {
           </div>
         </div>
         <DashboardSkeleton />
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
+          <strong>Debug:</strong> Cargando datos... (isLoading: true)
+        </div>
       </div>
     )
   }
@@ -84,6 +98,10 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-muted-foreground">Visualiza y gestiona tus finanzas personales.</p>
           </div>
+        </div>
+        
+        <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4">
+          <strong>Debug:</strong> No cargando (isLoading: false), Transacciones: {transactions.length}, Firebase: {isFirebaseEnabled ? 'Enabled' : 'Disabled'}
         </div>
         
         <div className="text-center py-12">
@@ -118,6 +136,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* Debug info */}
+      <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+        <strong>Debug:</strong> Dashboard cargado con {transactions.length} transacciones, Firebase: {isFirebaseEnabled ? 'Enabled' : 'Disabled'}
+      </div>
+      
       {/* Mostrar estado de configuración de Firebase si hay errores de índices */}
       {hasIndexErrors && (
         <FirebaseSetupStatus onRetry={retryFirebaseConnection} />
