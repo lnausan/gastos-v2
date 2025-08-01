@@ -43,18 +43,46 @@ jobs:
         echo "Current directory: $(pwd)"
         echo "Files in current directory:"
         ls -la
+        echo "Environment variables:"
+        echo "NEXT_PUBLIC_FIREBASE_API_KEY: $NEXT_PUBLIC_FIREBASE_API_KEY"
+        echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID: $NEXT_PUBLIC_FIREBASE_PROJECT_ID"
 
     - name: Install dependencies
       run: pnpm install --frozen-lockfile
 
+    - name: Show installed packages
+      run: |
+        echo "Installed packages:"
+        pnpm list --depth=0
+
     - name: Type check
-      run: pnpm run type-check
+      run: |
+        echo "Running type check..."
+        pnpm run type-check
+        echo "Type check completed successfully"
 
     - name: Lint
-      run: pnpm run lint
+      run: |
+        echo "Running lint..."
+        pnpm run lint
+        echo "Lint completed successfully"
 
     - name: Build
-      run: pnpm run build
+      run: |
+        echo "Running build..."
+        pnpm run build
+        echo "Build completed successfully"
+
+    - name: Show build output
+      run: |
+        echo "Build output directory:"
+        if [ -d ".next" ]; then
+          echo "Build directory exists"
+          ls -la .next/
+        else
+          echo "Build directory does not exist"
+          exit 1
+        fi
 
   deploy:
     needs: test
