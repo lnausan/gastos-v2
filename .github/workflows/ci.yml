@@ -36,8 +36,9 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'pnpm'
 
-    - name: Show environment info
+    - name: Debug environment
       run: |
+        echo "=== ENVIRONMENT DEBUG ==="
         echo "Node version: $(node --version)"
         echo "pnpm version: $(pnpm --version)"
         echo "Current directory: $(pwd)"
@@ -46,36 +47,42 @@ jobs:
         echo "Environment variables:"
         echo "NEXT_PUBLIC_FIREBASE_API_KEY: $NEXT_PUBLIC_FIREBASE_API_KEY"
         echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID: $NEXT_PUBLIC_FIREBASE_PROJECT_ID"
+        echo "=== END ENVIRONMENT DEBUG ==="
 
     - name: Install dependencies
-      run: pnpm install --frozen-lockfile
-
-    - name: Show installed packages
       run: |
+        echo "=== INSTALLING DEPENDENCIES ==="
+        pnpm install --frozen-lockfile
+        echo "=== DEPENDENCIES INSTALLED ==="
+
+    - name: Debug dependencies
+      run: |
+        echo "=== DEPENDENCIES DEBUG ==="
         echo "Installed packages:"
         pnpm list --depth=0
+        echo "=== END DEPENDENCIES DEBUG ==="
 
     - name: Type check
       run: |
-        echo "Running type check..."
+        echo "=== RUNNING TYPE CHECK ==="
         pnpm run type-check
-        echo "Type check completed successfully"
+        echo "=== TYPE CHECK COMPLETED ==="
 
     - name: Lint
       run: |
-        echo "Running lint..."
+        echo "=== RUNNING LINT ==="
         pnpm run lint
-        echo "Lint completed successfully"
+        echo "=== LINT COMPLETED ==="
 
     - name: Build
       run: |
-        echo "Running build..."
+        echo "=== RUNNING BUILD ==="
         pnpm run build
-        echo "Build completed successfully"
+        echo "=== BUILD COMPLETED ==="
 
-    - name: Show build output
+    - name: Debug build output
       run: |
-        echo "Build output directory:"
+        echo "=== BUILD OUTPUT DEBUG ==="
         if [ -d ".next" ]; then
           echo "Build directory exists"
           ls -la .next/
@@ -83,6 +90,7 @@ jobs:
           echo "Build directory does not exist"
           exit 1
         fi
+        echo "=== END BUILD OUTPUT DEBUG ==="
 
   deploy:
     needs: test
