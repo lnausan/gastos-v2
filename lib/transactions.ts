@@ -11,13 +11,30 @@ import {
   Timestamp,
   writeBatch
 } from 'firebase/firestore'
-import { db } from './firebase'
 import { Transaction, DollarValue, ClosedMonth } from '@/types/transaction'
+
+// Verificar si Firebase está configurado
+const isFirebaseEnabled = !!(
+  process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+  process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+)
+
+// console.log('transactionsService: Firebase configurado:', { isFirebaseEnabled })
 
 export const transactionsService = {
   // Agregar una nueva transacción
   async addTransaction(transaction: Omit<Transaction, "id" | "created_at" | "updated_at" | "user_id">, userId: string) {
+    if (!isFirebaseEnabled) {
+      return { success: false, error: 'Firebase no está configurado' }
+    }
     try {
+      // console.log('addTransaction llamado:', { isFirebaseEnabled })
+      const { db } = await import('./firebase')
+      if (!db) { 
+        // console.log('Firebase no configurado, retornando error')
+        return { success: false, error: 'Firebase no está configurado' } 
+      }
+
       const { date, ...rest } = transaction
       const docRef = await addDoc(collection(db, 'transactions'), {
         ...rest,
@@ -29,13 +46,23 @@ export const transactionsService = {
       })
       return { success: true, id: docRef.id }
     } catch (error: any) {
+      console.error('Error en addTransaction:', error)
       return { success: false, error: error.message }
     }
   },
 
   // Actualizar una transacción
   async updateTransaction(id: string, transaction: Partial<Transaction>) {
+    if (!isFirebaseEnabled) {
+      return { success: false, error: 'Firebase no está configurado' }
+    }
+
     try {
+      const { db } = await import('./firebase')
+      if (!db) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+
       const docRef = doc(db, 'transactions', id)
       
       const updatePayload: { [key: string]: any } = { ...transaction, updatedAt: Timestamp.now() }
@@ -47,29 +74,52 @@ export const transactionsService = {
       await updateDoc(docRef, updatePayload)
       return { success: true }
     } catch (error: any) {
+      console.error('Error en updateTransaction:', error)
       return { success: false, error: error.message }
     }
   },
 
   // Eliminar una transacción
   async deleteTransaction(id: string) {
+    if (!isFirebaseEnabled) {
+      return { success: false, error: 'Firebase no está configurado' }
+    }
+
     try {
+      const { db } = await import('./firebase')
+      if (!db) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+
       await deleteDoc(doc(db, 'transactions', id))
       return { success: true }
     } catch (error: any) {
+      console.error('Error en deleteTransaction:', error)
       return { success: false, error: error.message }
     }
   },
 
   // Obtener todas las transacciones de un usuario
   async getTransactions(userId: string) {
+    if (!isFirebaseEnabled) {
+      return { success: false, error: 'Firebase no está configurado' }
+    }
+
     try {
+      const { db } = await import('./firebase')
+      if (!db) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+
+      // console.log('Creando query para transacciones...')
       const q = query(
         collection(db, 'transactions'),
         where('userId', '==', userId),
         orderBy('date', 'desc')
       )
+      // console.log('Query creada, ejecutando getDocs...')
       const querySnapshot = await getDocs(q)
+      // console.log('Query ejecutada, procesando resultados...')
       const transactions: Transaction[] = []
       
       querySnapshot.forEach((doc) => {
@@ -91,17 +141,28 @@ export const transactionsService = {
         } as Transaction)
       })
       
+      // console.log('Transacciones procesadas:', transactions.length)
       return { success: true, transactions }
     } catch (error: any) {
+      console.error('Error en getTransactions:', error)
       return { success: false, error: error.message }
     }
   },
 
   // Obtener transacciones por mes
   async getTransactionsByMonth(userId: string, month: string) {
+    if (!isFirebaseEnabled) {
+      return { success: false, error: 'Firebase no está configurado' }
+    }
+
     try {
-      const startDate = new Date(month + '-01')
-      const endDate = new Date(new Date(startDate).setMonth(startDate.getMonth() + 1) - 1)
+      const { db } = await import('./firebase')
+      if (!db) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+
+      const startDate = new Date(`${month}-01`)
+      const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0)
       
       const q = query(
         collection(db, 'transactions'),
@@ -116,14 +177,14 @@ export const transactionsService = {
       
       querySnapshot.forEach((doc) => {
         const data = doc.data()
-
+        
         let date: string
         if (data.date && typeof data.date.toDate === 'function') {
           date = data.date.toDate().toISOString().split('T')[0]
         } else {
           date = data.date
         }
-
+        
         transactions.push({
           id: doc.id,
           ...data,
@@ -138,11 +199,20 @@ export const transactionsService = {
     }
   },
 
-  // Archivar transacciones de un mes específico
+  // Archivar transacciones de un mes
   async archiveMonthTransactions(userId: string, month: string) {
+    if (!isFirebaseEnabled) {
+      return { success: false, error: 'Firebase no está configurado' }
+    }
+
     try {
-      const startDate = new Date(month + '-01')
-      const endDate = new Date(new Date(startDate).setMonth(startDate.getMonth() + 1) - 1)
+      const { db } = await import('./firebase')
+      if (!db) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+
+      const startDate = new Date(`${month}-01`)
+      const endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0)
       
       const q = query(
         collection(db, 'transactions'),
@@ -155,12 +225,8 @@ export const transactionsService = {
       const querySnapshot = await getDocs(q)
       const batch = writeBatch(db)
       
-      querySnapshot.forEach((docSnapshot) => {
-        const docRef = doc(db, 'transactions', docSnapshot.id)
-        batch.update(docRef, { 
-          archived: true, 
-          updatedAt: Timestamp.now() 
-        })
+      querySnapshot.forEach((doc) => {
+        batch.update(doc.ref, { archived: true, updatedAt: Timestamp.now() })
       })
       
       await batch.commit()
@@ -172,7 +238,16 @@ export const transactionsService = {
 
   // Guardar mes cerrado
   async saveClosedMonth(closedMonth: Omit<ClosedMonth, "id" | "user_id">, userId: string) {
+    if (!isFirebaseEnabled) {
+      return { success: false, error: 'Firebase no está configurado' }
+    }
+
     try {
+      const { db } = await import('./firebase')
+      if (!db) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+
       const docRef = await addDoc(collection(db, 'closedMonths'), {
         ...closedMonth,
         userId,
@@ -187,7 +262,16 @@ export const transactionsService = {
 
   // Obtener meses cerrados
   async getClosedMonths(userId: string) {
+    if (!isFirebaseEnabled) {
+      return { success: false, error: 'Firebase no está configurado' }
+    }
+
     try {
+      const { db } = await import('./firebase')
+      if (!db) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+
       const q = query(
         collection(db, 'closedMonths'),
         where('userId', '==', userId),
@@ -200,14 +284,8 @@ export const transactionsService = {
         const data = doc.data()
         closedMonths.push({
           id: doc.id,
-          month: data.month,
-          income: data.income,
-          expense: data.expense,
-          balance: data.balance,
-          transaction_count: data.transaction_count,
-          closed_at: data.closedAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-          user_id: data.userId,
-          carry_over_amount: data.carry_over_amount
+          ...data,
+          user_id: userId
         } as ClosedMonth)
       })
       
@@ -217,10 +295,19 @@ export const transactionsService = {
     }
   },
 
-  // Agregar o actualizar valor del dólar
+  // Crear o actualizar valor del dólar
   async upsertDollarValue(dollarValue: Omit<DollarValue, "id" | "created_at" | "updated_at" | "user_id">, userId: string) {
+    if (!isFirebaseEnabled) {
+      return { success: false, error: 'Firebase no está configurado' }
+    }
+
     try {
-      // Buscar si ya existe un valor para ese mes
+      const { db } = await import('./firebase')
+      if (!db) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+
+      // Buscar si ya existe un valor para este mes
       const q = query(
         collection(db, 'dollarValues'),
         where('userId', '==', userId),
@@ -239,8 +326,7 @@ export const transactionsService = {
       } else {
         // Crear nuevo
         const docRef = await addDoc(collection(db, 'dollarValues'), {
-          month: dollarValue.month,
-          value: dollarValue.value,
+          ...dollarValue,
           userId,
           createdAt: Timestamp.now(),
           updatedAt: Timestamp.now()
@@ -252,9 +338,18 @@ export const transactionsService = {
     }
   },
 
-  // Obtener todos los valores del dólar de un usuario
+  // Obtener valores del dólar
   async getDollarValues(userId: string) {
+    if (!isFirebaseEnabled) {
+      return { success: false, error: 'Firebase no está configurado' }
+    }
+
     try {
+      const { db } = await import('./firebase')
+      if (!db) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+
       const q = query(
         collection(db, 'dollarValues'),
         where('userId', '==', userId),
@@ -267,11 +362,8 @@ export const transactionsService = {
         const data = doc.data()
         dollarValues.push({
           id: doc.id,
-          month: data.month,
-          value: data.value,
-          user_id: data.userId,
-          created_at: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-          updated_at: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString()
+          ...data,
+          user_id: userId
         } as DollarValue)
       })
       
@@ -283,7 +375,16 @@ export const transactionsService = {
 
   // Eliminar valor del dólar
   async deleteDollarValue(id: string) {
+    if (!isFirebaseEnabled) {
+      return { success: false, error: 'Firebase no está configurado' }
+    }
+
     try {
+      const { db } = await import('./firebase')
+      if (!db) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+
       await deleteDoc(doc(db, 'dollarValues', id))
       return { success: true }
     } catch (error: any) {

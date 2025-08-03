@@ -12,15 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [18.x]
-
-    env:
-      NEXT_PUBLIC_FIREBASE_API_KEY: "test-key"
-      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: "test-project.firebaseapp.com"
-      NEXT_PUBLIC_FIREBASE_PROJECT_ID: "test-project"
-      NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET: "test-project.appspot.com"
-      NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "123456789"
-      NEXT_PUBLIC_FIREBASE_APP_ID: "test-app-id"
+        node-version: [18.x, 20.x]
 
     steps:
     - uses: actions/checkout@v4
@@ -36,67 +28,17 @@ jobs:
         node-version: ${{ matrix.node-version }}
         cache: 'pnpm'
 
-    - name: Debug environment
-      run: |
-        echo "=== ENVIRONMENT DEBUG ==="
-        echo "Node version: $(node --version)"
-        echo "pnpm version: $(pnpm --version)"
-        echo "Current directory: $(pwd)"
-        echo "Files in current directory:"
-        ls -la
-        echo "Environment variables:"
-        echo "NEXT_PUBLIC_FIREBASE_API_KEY: $NEXT_PUBLIC_FIREBASE_API_KEY"
-        echo "NEXT_PUBLIC_FIREBASE_PROJECT_ID: $NEXT_PUBLIC_FIREBASE_PROJECT_ID"
-        echo "=== END ENVIRONMENT DEBUG ==="
-      continue-on-error: true
-
     - name: Install dependencies
-      run: |
-        echo "=== INSTALLING DEPENDENCIES ==="
-        pnpm install --frozen-lockfile
-        echo "=== DEPENDENCIES INSTALLED ==="
-      continue-on-error: true
-
-    - name: Debug dependencies
-      run: |
-        echo "=== DEPENDENCIES DEBUG ==="
-        echo "Installed packages:"
-        pnpm list --depth=0
-        echo "=== END DEPENDENCIES DEBUG ==="
-      continue-on-error: true
+      run: pnpm install
 
     - name: Type check
-      run: |
-        echo "=== RUNNING TYPE CHECK ==="
-        pnpm run type-check
-        echo "=== TYPE CHECK COMPLETED ==="
-      continue-on-error: true
+      run: pnpm run type-check
 
     - name: Lint
-      run: |
-        echo "=== RUNNING LINT ==="
-        pnpm run lint
-        echo "=== LINT COMPLETED ==="
-      continue-on-error: true
+      run: pnpm run lint
 
     - name: Build
-      run: |
-        echo "=== RUNNING BUILD ==="
-        pnpm run build
-        echo "=== BUILD COMPLETED ==="
-      continue-on-error: true
-
-    - name: Debug build output
-      run: |
-        echo "=== BUILD OUTPUT DEBUG ==="
-        if [ -d ".next" ]; then
-          echo "Build directory exists"
-          ls -la .next/
-        else
-          echo "Build directory does not exist"
-        fi
-        echo "=== END BUILD OUTPUT DEBUG ==="
-      continue-on-error: true
+      run: pnpm run build
 
   deploy:
     needs: test

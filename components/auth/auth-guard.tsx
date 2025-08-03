@@ -14,35 +14,68 @@ export function AuthGuard({ children }: AuthGuardProps) {
   const pathname = usePathname()
   const [isAuthorized, setIsAuthorized] = useState(false)
 
-  // Rutas que requieren autenticación
-  const protectedRoutes = ['/', '/historial']
-  const isProtectedRoute = protectedRoutes.includes(pathname)
+  // Verificar si Firebase está configurado
+  const isFirebaseEnabled = !!(
+    process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+    process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+  )
+
+  // console.log('AuthGuard renderizando:', {
+  //   loading,
+  //   user: user ? 'Usuario presente' : 'Sin usuario',
+  //   isFirebaseEnabled,
+  //   pathname
+  // })
 
   useEffect(() => {
-    if (!loading) {
-      if (isProtectedRoute && !user) {
-        // Si es una ruta protegida y no hay usuario, redirigir a auth
-        console.log('Usuario no autenticado, redirigiendo a /auth')
-        router.push('/auth')
-      } else if (pathname === '/auth' && user) {
-        // Si está en auth y ya está autenticado, redirigir al dashboard
-        console.log('Usuario autenticado en /auth, redirigiendo a /')
+    // console.log('AuthGuard useEffect ejecutándose:', {
+    //   loading,
+    //   user: user ? 'Usuario presente' : 'Sin usuario',
+    //   isFirebaseEnabled,
+    //   pathname
+    // })
+
+    if (loading) {
+      // console.log('AuthGuard: Aún cargando...')
+      return
+    }
+
+    if (isFirebaseEnabled) {
+      // console.log('AuthGuard: Modo Firebase')
+      if (pathname === '/auth') {
+        if (user) {
+          // console.log('AuthGuard: Usuario autenticado, redirigiendo a /')
+          router.push('/')
+        } else {
+          // console.log('AuthGuard: Sin usuario, permitiendo acceso a /auth')
+          setIsAuthorized(true)
+        }
+      } else {
+        if (user) {
+          // console.log('AuthGuard: Usuario autenticado, permitiendo acceso')
+          setIsAuthorized(true)
+        } else {
+          // console.log('AuthGuard: Sin usuario, redirigiendo a /auth')
+          router.push('/auth')
+        }
+      }
+    } else {
+      // console.log('AuthGuard: Modo local, permitiendo acceso')
+      if (pathname === '/auth') {
         router.push('/')
       } else {
-        // Usuario autorizado o ruta pública
-        console.log('Usuario autorizado para ruta:', pathname)
         setIsAuthorized(true)
       }
     }
-  }, [user, loading, pathname, isProtectedRoute, router])
+  }, [user, loading, pathname, router, isFirebaseEnabled])
 
   // Mostrar loading mientras verifica autenticación
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto dark:border-gray-100"></div>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Verificando autenticación...</p>
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 dark:border-gray-100 mx-auto"></div>
+          <p className="mt-4 text-lg">Cargando...</p>
         </div>
       </div>
     )
@@ -50,8 +83,17 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   // Si no está autorizado, no mostrar contenido
   if (!isAuthorized) {
-    return null
+    // console.log('AuthGuard: No autorizado, no mostrando contenido')
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900 dark:border-gray-100 mx-auto"></div>
+          <p className="mt-4 text-lg">Verificando autenticación...</p>
+        </div>
+      </div>
+    )
   }
 
+  // console.log('AuthGuard: Autorizado, mostrando contenido')
   return <>{children}</>
 } 

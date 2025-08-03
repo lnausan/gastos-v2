@@ -31,6 +31,8 @@ interface TransactionContextType {
   hasIndexErrors: boolean
   clearAllData: () => void
   retryFirebaseConnection: () => void
+  forceLoadHistoricalData: () => Promise<void>
+  loadHistoricalDataImmediately: () => void
 }
 
 const TransactionContext = createContext<TransactionContextType | undefined>(undefined)
@@ -42,19 +44,21 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const [isLoading, setIsLoading] = useState(true)
   const [isFirebaseEnabled, setIsFirebaseEnabled] = useState(false)
   const [hasIndexErrors, setHasIndexErrors] = useState(false)
-  const storageId = "gastos-v2"
-  const { user } = useAuth()
+  const [dataLoaded, setDataLoaded] = useState(false)
+  const storageId = 'gastos-v2' // ID fijo para localStorage
+  const { user, loading: authLoading } = useAuth()
 
   // Verificar si Firebase está configurado
   useEffect(() => {
     const checkFirebaseConfig = () => {
+      // Verificar si las variables de entorno están disponibles
       const hasConfig = !!(
         process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
         process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
       )
-      // Temporalmente deshabilitar Firebase para evitar errores de permisos
-      setIsFirebaseEnabled(false)
-      console.log('Firebase configurado:', hasConfig, 'pero temporalmente deshabilitado')
+      
+      setIsFirebaseEnabled(hasConfig)
+      // console.log('Firebase configurado:', { hasConfig, isEnabled: hasConfig })
     }
     
     checkFirebaseConfig()
@@ -62,164 +66,412 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
 
   // Cargar datos iniciales
   useEffect(() => {
+    // console.log('TransactionProvider useEffect ejecutándose:', {
+    //   authLoading,
+    //   dataLoaded,
+    //   isFirebaseEnabled,
+    //   user: user ? 'Usuario presente' : 'Sin usuario'
+    // })
+    
+    // Solo cargar datos cuando la autenticación haya terminado y no se hayan cargado ya
+    if (authLoading || dataLoaded) {
+      // console.log('Saltando carga de datos:', { authLoading, dataLoaded })
+      return
+    }
+
     const loadInitialData = async () => {
       try {
-        console.log('Iniciando carga de datos...')
-        console.log('Firebase habilitado:', isFirebaseEnabled)
-        console.log('Usuario:', user ? 'Autenticado' : 'No autenticado')
-
-        // Siempre cargar datos locales primero, independientemente del estado de Firebase
-        console.log('Cargando datos locales')
-        loadLocalData()
+        setIsLoading(true)
+        // console.log('Iniciando carga de datos...')
         
-        // Si Firebase está habilitado y hay usuario, intentar cargar desde Firebase
+        // Si no hay usuario autenticado, cargar datos locales directamente
+        if (!user) {
+          // console.log('No hay usuario autenticado, cargando datos locales...')
+          loadLocalData()
+          setDataLoaded(true)
+          setIsLoading(false)
+          return
+        }
+        
         if (isFirebaseEnabled && user) {
-          console.log('Intentando cargar datos desde Firebase para usuario:', user.uid)
+          // console.log('Cargando datos desde Firebase...', { userId: user.uid })
+          
+          let firebaseError = false
+          
           try {
             // Cargar desde Firebase
             const transactionsResult = await transactionsService.getTransactions(user.uid)
+            // console.log('Resultado de transacciones:', transactionsResult)
+            
             const dollarValuesResult = await transactionsService.getDollarValues(user.uid)
+            // console.log('Resultado de valores del dólar:', dollarValuesResult)
+            
             const closedMonthsResult = await transactionsService.getClosedMonths(user.uid)
+            // console.log('Resultado de meses cerrados:', closedMonthsResult)
             
             if (transactionsResult.success) {
               setTransactions(transactionsResult.transactions || [])
-              console.log('Transacciones cargadas desde Firebase:', transactionsResult.transactions?.length || 0)
+              // console.log('Transacciones de Firebase cargadas:', transactionsResult.transactions?.length || 0)
             } else {
-              console.error('Error al cargar transacciones desde Firebase:', transactionsResult.error)
+              console.error('Error al cargar transacciones:', transactionsResult.error)
               if (transactionsResult.error && transactionsResult.error.includes('index')) {
                 setHasIndexErrors(true)
+              }
+              if (transactionsResult.error && transactionsResult.error.includes('permissions')) {
+                firebaseError = true
               }
             }
 
             if (dollarValuesResult.success) {
               setDollarValues(dollarValuesResult.dollarValues || [])
-              console.log('Valores del dólar cargados desde Firebase:', dollarValuesResult.dollarValues?.length || 0)
+              // console.log('Valores del dólar de Firebase cargados:', dollarValuesResult.dollarValues?.length || 0)
             } else {
-              console.error('Error al cargar valores del dólar desde Firebase:', dollarValuesResult.error)
+              console.error('Error al cargar valores del dólar:', dollarValuesResult.error)
               if (dollarValuesResult.error && dollarValuesResult.error.includes('index')) {
                 setHasIndexErrors(true)
+              }
+              if (dollarValuesResult.error && dollarValuesResult.error.includes('permissions')) {
+                firebaseError = true
               }
             }
 
             if (closedMonthsResult.success) {
               const cleanedClosedMonths = cleanDuplicateClosedMonths(closedMonthsResult.closedMonths || [])
               setClosedMonths(cleanedClosedMonths)
-              console.log('Meses cerrados cargados desde Firebase:', cleanedClosedMonths.length)
+              // console.log('Meses cerrados de Firebase cargados:', cleanedClosedMonths.length)
             } else {
-              console.error('Error al cargar meses cerrados desde Firebase:', closedMonthsResult.error)
+              console.error('Error al cargar meses cerrados:', closedMonthsResult.error)
+              if (closedMonthsResult.error && closedMonthsResult.error.includes('permissions')) {
+                firebaseError = true
+              }
             }
+            
+            // Si hubo errores de permisos, cargar datos locales como fallback
+            if (firebaseError) {
+              // console.log('Error de permisos detectado, cargando datos locales como fallback')
+              loadLocalData()
+            }
+            
           } catch (error) {
-            console.error('Error al cargar datos desde Firebase:', error)
-            console.log('Manteniendo datos locales debido a error de Firebase')
+            console.error('Error al cargar datos de Firebase:', error)
+            firebaseError = true
+            loadLocalData()
           }
+        } else {
+          // console.log('Cargando datos locales...', { isFirebaseEnabled, hasUser: !!user })
+          // Cargar datos locales
+          loadLocalData()
         }
         
-        console.log('Datos cargados correctamente')
+        // console.log('Datos cargados correctamente')
+        setDataLoaded(true)
       } catch (error) {
         console.error('Error al cargar datos iniciales:', error)
         loadLocalData()
+        setDataLoaded(true)
         toast('Error al cargar los datos iniciales')
       } finally {
         setIsLoading(false)
       }
     }
 
-    const loadLocalData = () => {
-      try {
-        console.log('Cargando datos desde localStorage...')
-        console.log('Storage ID:', storageId)
-        
-        // Cargar transacciones desde localStorage
-        const storedTransactions = localStorage.getItem(`transactions-${storageId}`)
-        console.log('Stored transactions key:', `transactions-${storageId}`)
-        console.log('Stored transactions value:', storedTransactions)
-        
-        if (storedTransactions) {
-          const parsedTransactions = JSON.parse(storedTransactions)
-          setTransactions(parsedTransactions)
-          console.log('Transacciones cargadas desde localStorage:', parsedTransactions.length)
-        } else {
-          console.log('No hay transacciones en localStorage')
-          setTransactions([])
-        }
-
-        // Cargar valores del dólar desde localStorage
-        const storedDollarValues = localStorage.getItem(`dollar-values-${storageId}`)
-        console.log('Stored dollar values key:', `dollar-values-${storageId}`)
-        console.log('Stored dollar values value:', storedDollarValues)
-        
-        if (storedDollarValues) {
-          const parsedDollarValues = JSON.parse(storedDollarValues)
-          setDollarValues(parsedDollarValues)
-          console.log('Valores del dólar cargados desde localStorage:', parsedDollarValues.length)
-        } else {
-          console.log('No hay valores del dólar en localStorage')
-          setDollarValues([])
-        }
-
-        // Cargar meses cerrados desde localStorage
-        const storedClosedMonths = localStorage.getItem(`closed-months-${storageId}`)
-        console.log('Stored closed months key:', `closed-months-${storageId}`)
-        console.log('Stored closed months value:', storedClosedMonths)
-        
-        if (storedClosedMonths) {
-          const parsedClosedMonths = JSON.parse(storedClosedMonths)
-          const cleanedClosedMonths = cleanDuplicateClosedMonths(parsedClosedMonths)
-          setClosedMonths(cleanedClosedMonths)
-          console.log('Meses cerrados cargados desde localStorage:', cleanedClosedMonths.length)
-        } else {
-          console.log('No hay meses cerrados en localStorage')
-          setClosedMonths([])
-        }
-      } catch (error) {
-        console.error('Error al cargar datos locales:', error)
-        // Establecer arrays vacíos en caso de error
-        setTransactions([])
-        setDollarValues([])
-        setClosedMonths([])
-      }
-    }
-
     loadInitialData()
-  }, [storageId, isFirebaseEnabled, user])
+  }, [storageId, isFirebaseEnabled, user, authLoading, dataLoaded])
 
-  // Efecto adicional para manejar cambios en el usuario
+  // Timeout para forzar carga de datos si la autenticación tarda demasiado
   useEffect(() => {
-    if (user && isFirebaseEnabled && transactions.length === 0 && !isLoading) {
-      console.log('Usuario autenticado, recargando datos...')
-      setIsLoading(true)
-      // Recargar datos cuando el usuario cambia y no hay datos cargados
-      const loadUserData = async () => {
-        try {
-          const transactionsResult = await transactionsService.getTransactions(user.uid)
-          const dollarValuesResult = await transactionsService.getDollarValues(user.uid)
-          const closedMonthsResult = await transactionsService.getClosedMonths(user.uid)
-          
-          if (transactionsResult.success) {
-            setTransactions(transactionsResult.transactions || [])
-          }
-          if (dollarValuesResult.success) {
-            setDollarValues(dollarValuesResult.dollarValues || [])
-          }
-          if (closedMonthsResult.success) {
-            const cleanedClosedMonths = cleanDuplicateClosedMonths(closedMonthsResult.closedMonths || [])
-            setClosedMonths(cleanedClosedMonths)
-          }
-        } catch (error) {
-          console.error('Error al recargar datos del usuario:', error)
-        } finally {
+    if (authLoading && !dataLoaded) {
+      const timeoutId = setTimeout(() => {
+        // console.log('Timeout: Forzando carga de datos locales después de 5 segundos')
+        if (!dataLoaded) {
+          loadLocalData()
+          setDataLoaded(true)
           setIsLoading(false)
         }
-      }
-      
-      loadUserData()
+      }, 5000) // 5 segundos
+
+      return () => clearTimeout(timeoutId)
     }
-  }, [user?.uid, isFirebaseEnabled, transactions.length, isLoading])
+  }, [authLoading, dataLoaded])
+
+  // Timeout adicional más agresivo para asegurar que se carguen datos
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // console.log('Timeout agresivo: Forzando carga de datos después de 10 segundos')
+      if (!dataLoaded) {
+        loadLocalData()
+        setDataLoaded(true)
+        setIsLoading(false)
+      }
+    }, 10000) // 10 segundos
+
+    return () => clearTimeout(timeoutId)
+  }, [dataLoaded])
+
+  // Resetear dataLoaded cuando cambie el usuario
+  useEffect(() => {
+    setDataLoaded(false)
+  }, [user])
+
+  // Función para forzar la carga de datos históricos
+  const forceLoadHistoricalData = async () => {
+    try {
+      setIsLoading(true)
+      // console.log('Forzando carga de datos históricos...')
+      
+      if (user && isFirebaseEnabled) {
+        // Intentar cargar desde Firebase
+        const transactionsResult = await transactionsService.getTransactions(user.uid)
+        const dollarValuesResult = await transactionsService.getDollarValues(user.uid)
+        const closedMonthsResult = await transactionsService.getClosedMonths(user.uid)
+        
+        if (transactionsResult.success) {
+          setTransactions(transactionsResult.transactions || [])
+          // console.log('Transacciones históricas cargadas:', transactionsResult.transactions?.length || 0)
+        }
+        
+        if (dollarValuesResult.success) {
+          setDollarValues(dollarValuesResult.dollarValues || [])
+          // console.log('Valores del dólar históricos cargados:', dollarValuesResult.dollarValues?.length || 0)
+        }
+        
+        if (closedMonthsResult.success) {
+          const cleanedClosedMonths = cleanDuplicateClosedMonths(closedMonthsResult.closedMonths || [])
+          setClosedMonths(cleanedClosedMonths)
+          // console.log('Meses cerrados históricos cargados:', cleanedClosedMonths.length)
+        }
+        
+        toast.success('Datos históricos cargados desde Firebase')
+      } else {
+        // Si no hay usuario o Firebase no está disponible, agregar datos históricos de muestra
+        addHistoricalData()
+        toast.success('Datos históricos de muestra agregados')
+      }
+    } catch (error) {
+      console.error('Error al cargar datos históricos:', error)
+      toast.error('Error al cargar datos históricos')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Función para cargar datos históricos inmediatamente
+  const loadHistoricalDataImmediately = () => {
+    // console.log('Cargando datos históricos inmediatamente...')
+    addHistoricalData()
+    toast.success('Datos históricos cargados inmediatamente')
+  }
+
+  const loadLocalData = () => {
+    try {
+      // console.log('Cargando datos desde localStorage con storageId:', storageId)
+      
+      // Cargar transacciones desde localStorage
+      const storedTransactions = localStorage.getItem(`transactions-${storageId}`)
+      if (storedTransactions) {
+        const parsedTransactions = JSON.parse(storedTransactions)
+        setTransactions(parsedTransactions)
+        // console.log('Transacciones locales cargadas:', parsedTransactions.length)
+      } else {
+        // console.log('No se encontraron transacciones en localStorage')
+        // Agregar datos de prueba automáticamente
+        addSampleData()
+      }
+
+      // Cargar valores del dólar desde localStorage
+      const storedDollarValues = localStorage.getItem(`dollar-values-${storageId}`)
+      if (storedDollarValues) {
+        const parsedDollarValues = JSON.parse(storedDollarValues)
+        setDollarValues(parsedDollarValues)
+        // console.log('Valores del dólar locales cargados:', parsedDollarValues.length)
+      } else {
+        // console.log('No se encontraron valores del dólar en localStorage')
+      }
+
+      // Cargar meses cerrados desde localStorage
+      const storedClosedMonths = localStorage.getItem(`closed-months-${storageId}`)
+      if (storedClosedMonths) {
+        const parsedClosedMonths = JSON.parse(storedClosedMonths)
+        const cleanedClosedMonths = cleanDuplicateClosedMonths(parsedClosedMonths)
+        setClosedMonths(cleanedClosedMonths)
+        // console.log('Meses cerrados locales cargados:', cleanedClosedMonths.length)
+      } else {
+        // console.log('No se encontraron meses cerrados en localStorage')
+      }
+    } catch (error) {
+      console.error('Error al cargar datos locales:', error)
+    }
+  }
+
+  const addSampleData = () => {
+    // Obtener el mes actual
+    const now = new Date()
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+    const currentMonthName = now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+    
+    const sampleTransactions = [
+      {
+        id: '1',
+        amount: 100000,
+        type: 'ingreso' as const,
+        category_id: 'salario',
+        date: `${currentMonth}-15`,
+        description: `Salario ${currentMonthName}`,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user_id: 'local-user',
+        archived: false
+      },
+      {
+        id: '2',
+        amount: 25000,
+        type: 'gasto' as const,
+        category_id: 'comida',
+        date: `${currentMonth}-20`,
+        description: 'Supermercado',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user_id: 'local-user',
+        archived: false
+      },
+      {
+        id: '3',
+        amount: 15000,
+        type: 'gasto' as const,
+        category_id: 'transporte',
+        date: `${currentMonth}-22`,
+        description: 'Combustible',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user_id: 'local-user',
+        archived: false
+      },
+      {
+        id: '4',
+        amount: 50000,
+        type: 'ingreso' as const,
+        category_id: 'freelance',
+        date: `${currentMonth}-25`,
+        description: 'Proyecto freelance',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        user_id: 'local-user',
+        archived: false
+      }
+    ]
+
+    const sampleDollarValues = [
+      {
+        id: '1',
+        month: currentMonth,
+        value: 1000,
+        user_id: 'local-user',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      },
+      {
+        id: '2',
+        month: `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, '0')}`,
+        value: 1050,
+        user_id: 'local-user',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }
+    ]
+
+    setTransactions(sampleTransactions)
+    setDollarValues(sampleDollarValues)
+    
+    // Guardar en localStorage
+    localStorage.setItem(`transactions-${storageId}`, JSON.stringify(sampleTransactions))
+    localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(sampleDollarValues))
+    
+    // console.log('Datos de muestra agregados automáticamente para el mes actual:', currentMonth)
+    toast.success(`Datos de muestra cargados para ${currentMonthName}`)
+  }
+
+  const addHistoricalData = () => {
+    // Generar datos históricos para los últimos 6 meses
+    const now = new Date()
+    const historicalTransactions = []
+    const historicalDollarValues = []
+    
+    for (let i = 0; i < 6; i++) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const month = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`
+      const monthName = monthDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })
+      
+      // Agregar transacciones para cada mes
+      historicalTransactions.push(
+        {
+          id: `hist-${month}-1`,
+          amount: 80000 + Math.floor(Math.random() * 40000),
+          type: 'ingreso' as const,
+          category_id: 'salario',
+          date: `${month}-15`,
+          description: `Salario ${monthName}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          user_id: 'local-user',
+          archived: false
+        },
+        {
+          id: `hist-${month}-2`,
+          amount: 20000 + Math.floor(Math.random() * 15000),
+          type: 'gasto' as const,
+          category_id: 'comida',
+          date: `${month}-20`,
+          description: 'Supermercado',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          user_id: 'local-user',
+          archived: false
+        },
+        {
+          id: `hist-${month}-3`,
+          amount: 10000 + Math.floor(Math.random() * 10000),
+          type: 'gasto' as const,
+          category_id: 'transporte',
+          date: `${month}-22`,
+          description: 'Combustible',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          user_id: 'local-user',
+          archived: false
+        }
+      )
+      
+      // Agregar valor del dólar para cada mes
+      historicalDollarValues.push({
+        id: `dollar-${month}`,
+        month: month,
+        value: 950 + Math.floor(Math.random() * 100),
+        user_id: 'local-user',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+    }
+    
+    // Combinar con datos actuales
+    const allTransactions = [...transactions, ...historicalTransactions]
+    const allDollarValues = [...dollarValues, ...historicalDollarValues]
+    
+    setTransactions(allTransactions)
+    setDollarValues(allDollarValues)
+    
+    // Guardar en localStorage
+    localStorage.setItem(`transactions-${storageId}`, JSON.stringify(allTransactions))
+    localStorage.setItem(`dollar-values-${storageId}`, JSON.stringify(allDollarValues))
+    
+    // console.log('Datos históricos agregados:', historicalTransactions.length, 'transacciones')
+    toast.success(`Datos históricos agregados: ${historicalTransactions.length} transacciones`)
+  }
 
   const clearAllData = () => {
     setTransactions([])
     setDollarValues([])
     setClosedMonths([])
+    setDataLoaded(false)
     localStorage.removeItem(`transactions-${storageId}`)
     localStorage.removeItem(`dollar-values-${storageId}`)
     localStorage.removeItem(`closed-months-${storageId}`)
@@ -507,6 +759,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
   const retryFirebaseConnection = async () => {
     setIsLoading(true)
     setHasIndexErrors(false)
+    setDataLoaded(false)
     
     try {
       if (isFirebaseEnabled && user) {
@@ -517,6 +770,7 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
         if (transactionsResult.success && dollarValuesResult.success) {
           setTransactions(transactionsResult.transactions || [])
           setDollarValues(dollarValuesResult.dollarValues || [])
+          setDataLoaded(true)
           toast('Conexión con Firebase restaurada correctamente')
         } else {
           // Si aún hay errores de índices, mantener el estado
@@ -744,6 +998,8 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     clearAllData,
     retryFirebaseConnection,
     refreshMonthTransactions,
+    forceLoadHistoricalData,
+    loadHistoricalDataImmediately,
   }
 
   return (

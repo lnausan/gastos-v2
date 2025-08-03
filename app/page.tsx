@@ -18,7 +18,7 @@ import MonthSelector from "@/components/month-selector"
 import MonthCloser from "@/components/month-closer"
 import DollarValue from "@/components/dollar-value"
 import CategorySummary from "@/components/category-summary"
-import { FirebaseSetupStatus } from "@/components/firebase-setup-status"
+// import { FirebaseSetupStatus } from "@/components/firebase-setup-status"
 import { useTransactions } from "@/context/transaction-context"
 import DashboardSkeleton from '@/components/dashboard-skeleton'
 
@@ -43,8 +43,7 @@ export default function DashboardPage() {
     transactions, 
     hasIndexErrors, 
     retryFirebaseConnection,
-    refreshMonthTransactions,
-    isFirebaseEnabled
+    refreshMonthTransactions
   } = useTransactions()
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), "yyyy-MM"))
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -62,17 +61,7 @@ export default function DashboardPage() {
     }
   }, [selectedMonth, isLoading, refreshMonthTransactions])
 
-  // Debug info
-  console.log('Dashboard Debug:', {
-    isLoading,
-    transactionsLength: transactions.length,
-    isFirebaseEnabled,
-    summary,
-    dollarValue,
-    selectedMonth
-  })
-
-  if (isLoading) {
+  if (isLoading && transactions.length === 0) {
     return (
       <div className="space-y-8">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -82,68 +71,24 @@ export default function DashboardPage() {
           </div>
         </div>
         <DashboardSkeleton />
-        <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded">
-          <strong>Debug:</strong> Cargando datos... (isLoading: true)
-        </div>
-      </div>
-    )
-  }
-
-  // Si no hay transacciones y no está cargando, mostrar mensaje
-  if (!isLoading && transactions.length === 0) {
-    return (
-      <div className="space-y-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-muted-foreground">Visualiza y gestiona tus finanzas personales.</p>
-          </div>
-        </div>
-        
-        <div className="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded mb-4">
-          <strong>Debug:</strong> No cargando (isLoading: false), Transacciones: {transactions.length}, Firebase: {isFirebaseEnabled ? 'Enabled' : 'Disabled'}
-        </div>
-        
-        <div className="text-center py-12">
-          <div className="mx-auto max-w-md">
-            <div className="rounded-full bg-muted p-3 w-fit mx-auto mb-4">
-              <Plus className="h-6 w-6 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold mb-2">No hay transacciones</h3>
-            <p className="text-muted-foreground mb-6">
-              Comienza agregando tu primera transacción para ver tus finanzas en el dashboard.
-            </p>
-            <Button onClick={() => setIsFormOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Agregar primera transacción
-            </Button>
-          </div>
-        </div>
-
-        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
-          <DialogContent className="sm:max-w-[425px]" aria-describedby="new-transaction-desc">
-            <DialogHeader>
-              <DialogTitle>Nueva transacción</DialogTitle>
-            </DialogHeader>
-            <p id="new-transaction-desc" className="sr-only">
-              Completa los campos para agregar una nueva transacción.
-            </p>
-            <TransactionForm onSuccess={() => setIsFormOpen(false)} />
-          </DialogContent>
-        </Dialog>
+        {/* <FirebaseSetupStatus /> */}
       </div>
     )
   }
 
   return (
     <div className="space-y-8">
-      {/* Debug info */}
-      <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-        <strong>Debug:</strong> Dashboard cargado con {transactions.length} transacciones, Firebase: {isFirebaseEnabled ? 'Enabled' : 'Disabled'}
-      </div>
-      
       {/* Mostrar estado de configuración de Firebase si hay errores de índices */}
       {hasIndexErrors && (
-        <FirebaseSetupStatus onRetry={retryFirebaseConnection} />
+        <div className="p-4 bg-orange-100 border border-orange-300 rounded-lg">
+          <p className="text-orange-800">Hay errores de índices de Firebase. Revisa la consola para más detalles.</p>
+          <button 
+            onClick={retryFirebaseConnection}
+            className="mt-2 px-4 py-2 bg-orange-600 text-white rounded hover:bg-orange-700"
+          >
+            Reintentar
+          </button>
+        </div>
       )}
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -330,6 +275,9 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Componente de debug */}
+      {/* <FirebaseSetupStatus /> */}
     </div>
   )
 }

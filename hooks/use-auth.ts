@@ -6,36 +6,87 @@ import {
   onAuthStateChanged,
   User
 } from 'firebase/auth'
-import { auth } from '@/lib/firebase'
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    console.log('Iniciando listener de autenticación...')
-    
-    // Check if Firebase auth is available
-    if (!auth) {
-      console.log('Firebase auth no disponible, saltando autenticación')
+    const isFirebaseEnabled = !!(
+      process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    )
+
+    // console.log('useAuth: Verificando Firebase:', { isFirebaseEnabled })
+
+    if (!isFirebaseEnabled) {
+      // console.log('useAuth: Firebase no configurado, usando modo local')
       setLoading(false)
       return
     }
 
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      console.log('Estado de autenticación cambiado:', user ? `Usuario: ${user.uid}` : 'No autenticado')
-      setUser(user)
+    const timeoutId = setTimeout(() => {
+      // console.log('useAuth: Timeout alcanzado, estableciendo loading en false')
       setLoading(false)
-    })
+    }, 3000) // 3 segundos de timeout
 
-    return unsubscribe
+    const initializeAuth = async () => {
+      try {
+        // console.log('useAuth: Importando Firebase...')
+        const { auth } = await import('@/lib/firebase')
+        
+        if (!auth) {
+          // console.log('useAuth: Auth no disponible, usando modo local')
+          clearTimeout(timeoutId)
+          setLoading(false)
+          return
+        }
+
+        // console.log('useAuth: Configurando onAuthStateChanged...')
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+          clearTimeout(timeoutId)
+          // console.log('useAuth: Estado de autenticación cambiado:', user ? {
+          //   uid: user.uid,
+          //   email: user.email
+          // } : 'Sin usuario')
+          setUser(user)
+          setLoading(false)
+        }, (error) => {
+          clearTimeout(timeoutId)
+          console.error('useAuth: Error en autenticación:', error)
+          setLoading(false)
+        })
+
+        return unsubscribe
+      } catch (error) {
+        clearTimeout(timeoutId)
+        console.error('useAuth: Error al inicializar Firebase:', error)
+        setLoading(false)
+      }
+    }
+
+    initializeAuth()
+    return () => {
+      clearTimeout(timeoutId)
+    }
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    if (!auth) {
+    const isFirebaseEnabled = !!(
+      process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    )
+
+    if (!isFirebaseEnabled) {
       return { success: false, error: 'Firebase no está configurado' }
     }
+    
     try {
+      const { auth } = await import('@/lib/firebase')
+      if (!auth) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+      
       const result = await signInWithEmailAndPassword(auth, email, password)
       return { success: true, user: result.user }
     } catch (error: any) {
@@ -44,10 +95,21 @@ export function useAuth() {
   }
 
   const signUp = async (email: string, password: string) => {
-    if (!auth) {
+    const isFirebaseEnabled = !!(
+      process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    )
+
+    if (!isFirebaseEnabled) {
       return { success: false, error: 'Firebase no está configurado' }
     }
+    
     try {
+      const { auth } = await import('@/lib/firebase')
+      if (!auth) {
+        return { success: false, error: 'Firebase no está configurado' }
+      }
+      
       const result = await createUserWithEmailAndPassword(auth, email, password)
       return { success: true, user: result.user }
     } catch (error: any) {
@@ -56,10 +118,23 @@ export function useAuth() {
   }
 
   const logout = async () => {
-    if (!auth) {
-      return { success: false, error: 'Firebase no está configurado' }
+    const isFirebaseEnabled = !!(
+      process.env.NEXT_PUBLIC_FIREBASE_API_KEY &&
+      process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    )
+
+    if (!isFirebaseEnabled) {
+      setUser(null)
+      return { success: true }
     }
+    
     try {
+      const { auth } = await import('@/lib/firebase')
+      if (!auth) {
+        setUser(null)
+        return { success: true }
+      }
+      
       await signOut(auth)
       return { success: true }
     } catch (error: any) {

@@ -29,8 +29,7 @@ export default function DollarValue({ month }: DollarValueProps) {
   const dollarValue = getDollarValue(month)
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
-  // Log para depuración del valor del dólar
-  console.log('Valor del dólar para', month, ':', dollarValue)
+  // console.log('Valor del dólar para', month, ':', dollarValue)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -47,8 +46,7 @@ export default function DollarValue({ month }: DollarValueProps) {
 
   const onSubmit = async (data: FormValues) => {
     const result = await updateDollarValue(month, data.value)
-    // Log para depuración del resultado del upsert
-    console.log('Resultado de updateDollarValue:', result)
+    // console.log('Resultado de updateDollarValue:', result)
     setIsDialogOpen(false)
   }
 
