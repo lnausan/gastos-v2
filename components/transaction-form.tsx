@@ -31,7 +31,7 @@ const formSchema = z.object({
   date: z.date({
     required_error: "Debes seleccionar una fecha",
   }),
-  description: z.string().optional(),
+  description: z.string().nullable(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -70,14 +70,14 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
         type: transaction.type ?? "gasto",
         category_id: transaction.category_id ?? undefined,
         date: transaction.date ? new Date(transaction.date) : new Date(),
-        description: transaction.description ?? undefined,
+        description: transaction.description ?? null,
       }
     : {
         amount: 0,
         type: "gasto",
         category_id: undefined,
         date: new Date(),
-        description: undefined,
+        description: null,
       }
 
   const form = useForm<FormValues>({
@@ -92,8 +92,8 @@ export default function TransactionForm({ transaction, onSuccess }: TransactionF
       // Formatear la fecha como YYYY-MM-DD
       const formattedDate = format(values.date, "yyyy-MM-dd")
 
-      // description debe ser string | null para la base de datos
-      const dbDescription = values.description ?? null;
+      // description ya es string | null desde el schema
+      const dbDescription = values.description;
 
       if (transaction) {
         // Actualizar transacción existente
