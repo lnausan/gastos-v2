@@ -68,7 +68,17 @@ export default function DollarValue({ month }: DollarValueProps) {
         </div>
         {dollarValue && (
           <p className="text-xs text-muted-foreground mt-1">
-            Última actualización: {format(new Date(dollarValue.updated_at), "dd/MM/yyyy HH:mm")}
+            Última actualización: {(() => {
+              try {
+                const date = new Date(dollarValue.updated_at)
+                if (isNaN(date.getTime())) {
+                  return "Fecha no disponible"
+                }
+                return format(date, "dd/MM/yyyy HH:mm")
+              } catch (error) {
+                return "Fecha no disponible"
+              }
+            })()}
           </p>
         )}
       </CardContent>

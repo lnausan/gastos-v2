@@ -362,8 +362,11 @@ export const transactionsService = {
         const data = doc.data()
         dollarValues.push({
           id: doc.id,
-          ...data,
-          user_id: userId
+          month: data.month,
+          value: data.value,
+          user_id: userId,
+          created_at: data.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+          updated_at: data.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString()
         } as DollarValue)
       })
       
