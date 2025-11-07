@@ -30,6 +30,8 @@ export interface MonthSummary {
   income: number
   expense: number
   balance: number
+  usdt: number // Total de transacciones con categoría USDT
+  cedears: number // Total de transacciones con categoría CEDEARS
 }
 
 export interface DollarValue {
@@ -51,4 +53,6 @@ export interface ClosedMonth {
   closed_at: string
   user_id: string
   carry_over_amount?: number // Monto llevado al próximo mes
+  usdt?: number // Total de transacciones con categoría USDT
+  cedears?: number // Total de transacciones con categoría CEDEARS
 }

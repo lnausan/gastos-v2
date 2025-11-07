@@ -21,6 +21,8 @@ function formatCurrency(amount: number) {
 function getCategoryName(categoryId: string): string {
   const categories: Record<string, string> = {
     'usdt': 'USDT',
+    'cedears': 'CEDEARS',
+    'acc': 'ACC',
     'finanzas': 'Finanzas',
     'sueldo': 'Sueldo',
     'ingreso': 'Ingreso',

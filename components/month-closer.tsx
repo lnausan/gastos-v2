@@ -139,6 +139,19 @@ export default function MonthCloser({ currentMonth, onMonthChange, onOpenTransac
               </div>
               <Separator />
               <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">USDT:</span>
+                <span className="font-medium text-purple-600 dark:text-purple-400">
+                  ${currentSummary.usdt.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">CEDEARS:</span>
+                <span className="font-medium text-indigo-600 dark:text-indigo-400">
+                  ${currentSummary.cedears.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+              </div>
+              <Separator />
+              <div className="flex justify-between items-center">
                 <span className="text-sm font-medium">Balance Final:</span>
                 <span className={`font-bold text-lg ${
                   currentSummary.balance >= 0 

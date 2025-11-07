@@ -141,6 +141,22 @@ export default function HistorialPage() {
                       ${closedMonth.expense.toLocaleString('es-AR')}
                     </span>
                   </div>
+                  {closedMonth.usdt !== undefined && closedMonth.usdt > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">USDT:</span>
+                      <span className="text-purple-600 font-medium">
+                        ${closedMonth.usdt.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
+                  {closedMonth.cedears !== undefined && closedMonth.cedears > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">CEDEARS:</span>
+                      <span className="text-indigo-600 font-medium">
+                        ${closedMonth.cedears.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between border-t pt-2">
                     <span className="font-medium">Balance:</span>
                     <span className={`font-bold ${
@@ -183,6 +199,8 @@ export default function HistorialPage() {
                 <th className="text-right p-3 font-medium">Ingresos</th>
                 <th className="text-right p-3 font-medium">Gastos</th>
                 <th className="text-right p-3 font-medium">Balance</th>
+                <th className="text-right p-3 font-medium">USDT</th>
+                <th className="text-right p-3 font-medium">CEDEARS</th>
                 <th className="text-right p-3 font-medium">Dólar</th>
                 <th className="text-center p-3 font-medium">Acciones</th>
               </tr>
@@ -190,7 +208,7 @@ export default function HistorialPage() {
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-4 text-center text-muted-foreground">
+                  <td colSpan={8} className="py-4 text-center text-muted-foreground">
                     No hay datos registrados
                   </td>
                 </tr>
@@ -206,6 +224,12 @@ export default function HistorialPage() {
                     </td>
                     <td className={`py-2 px-2 text-right font-semibold ${d.balance >= 0 ? "text-blue-600" : "text-orange-600"}`}>
                       ${d.balance.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="py-2 px-2 text-right text-purple-600">
+                      ${(d.usdt || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                    <td className="py-2 px-2 text-right text-indigo-600">
+                      ${(d.cedears || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="py-2 px-2 text-right text-yellow-600">
                       {d.dollar !== undefined

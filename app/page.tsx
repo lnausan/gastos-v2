@@ -142,7 +142,7 @@ export default function DashboardPage() {
           <DollarValue month={selectedMonth} />
         </div>
 
-        <div className="md:col-span-3 grid gap-4 md:grid-cols-3">
+        <div className="md:col-span-3 grid gap-4 md:grid-cols-5">
           <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 border-green-200 dark:border-green-800">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium flex items-center text-green-700 dark:text-green-300">
@@ -211,6 +211,46 @@ export default function DashboardPage() {
                 <div className="mt-1 flex items-center text-xs text-muted-foreground">
                   <DollarSign className="mr-1 h-3 w-3" />
                   USD {(summary.balance / dollarValue.value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-purple-200 dark:border-purple-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center text-purple-700 dark:text-purple-300">
+                <DollarSign className="mr-2 h-4 w-4" />
+                USDT
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                {summary.usdt.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              {summary.usdt > 0 && dollarValue && (
+                <div className="mt-1 flex items-center text-xs text-muted-foreground">
+                  <DollarSign className="mr-1 h-3 w-3" />
+                  USD {(summary.usdt / dollarValue.value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-950 dark:to-indigo-900 border-indigo-200 dark:border-indigo-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center text-indigo-700 dark:text-indigo-300">
+                <DollarSign className="mr-2 h-4 w-4" />
+                CEDEARS
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                {summary.cedears.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </div>
+              {summary.cedears > 0 && dollarValue && (
+                <div className="mt-1 flex items-center text-xs text-muted-foreground">
+                  <DollarSign className="mr-1 h-3 w-3" />
+                  USD {(summary.cedears / dollarValue.value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
               )}
             </CardContent>

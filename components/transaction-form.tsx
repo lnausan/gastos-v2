@@ -44,6 +44,8 @@ interface TransactionFormProps {
 // Categorías locales para desarrollo sin Supabase
 const LOCAL_CATEGORIES = [
   { id: "usdt", name: "USDT" },
+  { id: "cedears", name: "CEDEARS" },
+  { id: "acc", name: "ACC" },
   { id: "finanzas", name: "Finanzas" },
   { id: "sueldo", name: "Sueldo" },
   { id: "ingreso", name: "Ingreso" },

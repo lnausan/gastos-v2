@@ -612,12 +612,24 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
     const expense = monthTransactions
       .filter((t) => t.type === 'gasto')
       .reduce((sum, t) => sum + t.amount, 0)
+    
+    // Calcular USDT (suma de todas las transacciones con categoría "usdt")
+    const usdt = monthTransactions
+      .filter((t) => t.category_id === 'usdt')
+      .reduce((sum, t) => sum + t.amount, 0)
+    
+    // Calcular CEDEARS (suma de todas las transacciones con categoría "cedears")
+    const cedears = monthTransactions
+      .filter((t) => t.category_id === 'cedears')
+      .reduce((sum, t) => sum + t.amount, 0)
 
     return {
       month,
       income,
       expense,
       balance: income - expense,
+      usdt,
+      cedears,
     }
   }
 
@@ -669,12 +681,22 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
       const expense = monthTransactions
         .filter(t => t.type === 'gasto')
         .reduce((sum, t) => sum + Number(t.amount), 0)
+      
+      const usdt = monthTransactions
+        .filter(t => t.category_id === 'usdt')
+        .reduce((sum, t) => sum + Number(t.amount), 0)
+      
+      const cedears = monthTransactions
+        .filter(t => t.category_id === 'cedears')
+        .reduce((sum, t) => sum + Number(t.amount), 0)
 
       return {
         month,
         income,
         expense,
-        balance: income - expense
+        balance: income - expense,
+        usdt,
+        cedears
       }
     })
   }
@@ -835,7 +857,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           balance: monthSummary.balance,
           transaction_count: monthTransactions.length,
           closed_at: new Date().toISOString(),
-          carry_over_amount: carryOverAmount
+          carry_over_amount: carryOverAmount,
+          usdt: monthSummary.usdt,
+          cedears: monthSummary.cedears
         }
 
         const saveResult = await transactionsService.saveClosedMonth(closedMonthData, user.uid)
@@ -872,7 +896,9 @@ export function TransactionProvider({ children }: { children: React.ReactNode })
           transaction_count: monthTransactions.length,
           closed_at: new Date().toISOString(),
           user_id: 'mock-user',
-          carry_over_amount: carryOverAmount
+          carry_over_amount: carryOverAmount,
+          usdt: monthSummary.usdt,
+          cedears: monthSummary.cedears
         }
         
         // Actualizar estado y localStorage con el nuevo estado
